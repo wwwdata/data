@@ -658,6 +658,33 @@ test("serialize with embedded objects (hasMany relationship) supports serialize:
   });
 });
 
+test("serialize with embedded objects (belongsTo relationship)", function() {
+  var villain;
+  run(function() {
+    league = env.store.createRecord('home-planet', { name: "Villain League", id: "123" });
+    villain = env.store.createRecord('super-villain', { firstName: "Tom", lastName: "Dale", homePlanet: league, id: '1' });
+  });
+
+  env.registry.register('serializer:super-villain', DS.ActiveModelSerializer.extend(DS.EmbeddedRecordsMixin, {
+    attrs: {
+      homePlanet: { embedded: 'always'}
+    }
+  }));
+
+  var serializer, json;
+  run(function() {
+    serializer = env.container.lookup("serializer:super-villain");
+
+    json = serializer.serialize(villain._createSnapshot());
+  });
+
+  deepEqual(json, {
+    name: "Villain League",
+    homePlanet: null
+  });
+
+});
+
 test("serialize with (new) embedded objects (hasMany relationship)", function() {
   run(function() {
     league = env.store.createRecord('home-planet', { name: "Villain League", id: "123" });

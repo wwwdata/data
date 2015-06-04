@@ -211,6 +211,7 @@ Model.reopenClass({
     @return {Object} the inverse relationship, or null
   */
   inverseFor: function(name, store) {
+    Ember.assert('A store must be passed to inverseFor', arguments.length === 2 && store);
     var inverseMap = get(this, 'inverseMap');
     if (inverseMap[name]) {
       return inverseMap[name];
