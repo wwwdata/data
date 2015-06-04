@@ -1,10 +1,16 @@
 import OrderedSet from "ember-data/system/ordered-set";
+import Bucket from "./buckets/bucket";
 
 var forEach = Ember.EnumerableUtils.forEach;
 
+function Buckets(store, record, inverseKey, relationshipMeta, relationship) {
+  this.canonical = new Bucket('canonical', store, record, inverseKey, relationshipMeta, relationship);
+  this.current = new Bucket('current', store, record, inverseKey, relationshipMeta, relationship);
+}
+
 function Relationship(store, record, inverseKey, relationshipMeta) {
   this.members = new OrderedSet();
-  this.canonicalMembers = new OrderedSet();
+  this.buckets = new Buckets(store, record, inverseKey, relationshipMeta, this);
   this.store = store;
   this.key = relationshipMeta.key;
   this.inverseKey = inverseKey;
@@ -63,53 +69,19 @@ Relationship.prototype = {
   },
 
   addCanonicalRecords: function(records, idx) {
-    for (var i=0; i<records.length; i++) {
-      if (idx !== undefined) {
-        this.addCanonicalRecord(records[i], i+idx);
-      } else {
-        this.addCanonicalRecord(records[i]);
-      }
-    }
+    this.buckets.canonical.addRecords(records, idx);
   },
 
   addCanonicalRecord: function(record, idx) {
-    if (!this.canonicalMembers.has(record)) {
-      this.canonicalMembers.add(record);
-      if (this.inverseKey) {
-        record._relationships.get(this.inverseKey).addCanonicalRecord(this.record);
-      } else {
-        if (!record._implicitRelationships[this.inverseKeyForImplicit]) {
-          record._implicitRelationships[this.inverseKeyForImplicit] = new Relationship(this.store, record, this.key,  { options: {} });
-        }
-        record._implicitRelationships[this.inverseKeyForImplicit].addCanonicalRecord(this.record);
-      }
-    }
-    this.flushCanonicalLater();
-    this.setHasData(true);
+    this.buckets.canonical.add(record, idx);
   },
 
   removeCanonicalRecords: function(records, idx) {
-    for (var i=0; i<records.length; i++) {
-      if (idx !== undefined) {
-        this.removeCanonicalRecord(records[i], i+idx);
-      } else {
-        this.removeCanonicalRecord(records[i]);
-      }
-    }
+    this.buckets.canonical.removeRecords(records, idx);
   },
 
   removeCanonicalRecord: function(record, idx) {
-    if (this.canonicalMembers.has(record)) {
-      this.removeCanonicalRecordFromOwn(record);
-      if (this.inverseKey) {
-        this.removeCanonicalRecordFromInverse(record);
-      } else {
-        if (record._implicitRelationships[this.inverseKeyForImplicit]) {
-          record._implicitRelationships[this.inverseKeyForImplicit].removeCanonicalRecord(this.record);
-        }
-      }
-    }
-    this.flushCanonicalLater();
+    this.buckets.canonical.remove(record, idx);
   },
 
   addRecord: function(record, idx) {
@@ -162,19 +134,6 @@ Relationship.prototype = {
     this.record.updateRecordArrays();
   },
 
-  removeCanonicalRecordFromInverse: function(record) {
-    var inverseRelationship = record._relationships.get(this.inverseKey);
-    //Need to check for existence, as the record might unloading at the moment
-    if (inverseRelationship) {
-      inverseRelationship.removeCanonicalRecordFromOwn(this.record);
-    }
-  },
-
-  removeCanonicalRecordFromOwn: function(record) {
-    this.canonicalMembers.delete(record);
-    this.flushCanonicalLater();
-  },
-
   flushCanonical: function() {
     this.willSync = false;
     //a hack for not removing new records
@@ -186,7 +145,8 @@ Relationship.prototype = {
       }
     }
     //TODO(Igor) make this less abysmally slow
-    this.members = this.canonicalMembers.copy();
+    //FIXME maybe shouldn't acces directly
+    this.members = this.buckets.canonical.members.copy();
     for (i=0; i<newRecords.length; i++) {
       this.members.add(newRecords[i]);
     }

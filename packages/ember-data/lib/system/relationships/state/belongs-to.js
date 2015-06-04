@@ -3,9 +3,16 @@ import {
 } from "ember-data/system/promise-proxies";
 
 import Relationship from "ember-data/system/relationships/state/relationship";
+import BelongsToBucket from "./buckets/belongs-to";
+
+function Buckets(store, record, inverseKey, relationshipMeta, relationship) {
+  this.canonical = new BelongsToBucket('canonical', store, record, inverseKey, relationshipMeta, relationship);
+  this.current = new BelongsToBucket('current', store, record, inverseKey, relationshipMeta, relationship);
+}
 
 var BelongsToRelationship = function(store, record, inverseKey, relationshipMeta) {
   this._super$constructor(store, record, inverseKey, relationshipMeta);
+  this.buckets = new Buckets(store, record, inverseKey, relationshipMeta, this);
   this.record = record;
   this.key = relationshipMeta.key;
   this.inverseRecord = null;
@@ -34,18 +41,6 @@ BelongsToRelationship.prototype.setCanonicalRecord = function(newRecord) {
   this.setHasData(true);
 };
 
-BelongsToRelationship.prototype._super$addCanonicalRecord = Relationship.prototype.addCanonicalRecord;
-BelongsToRelationship.prototype.addCanonicalRecord = function(newRecord) {
-  if (this.canonicalMembers.has(newRecord)) { return;}
-
-  if (this.canonicalState) {
-    this.removeCanonicalRecord(this.canonicalState);
-  }
-
-  this.canonicalState = newRecord;
-  this._super$addCanonicalRecord(newRecord);
-};
-
 BelongsToRelationship.prototype._super$flushCanonical = Relationship.prototype.flushCanonical;
 BelongsToRelationship.prototype.flushCanonical = function() {
   //temporary fix to not remove newly created records if server returned null.
@@ -53,7 +48,7 @@ BelongsToRelationship.prototype.flushCanonical = function() {
   if (this.inverseRecord && this.inverseRecord.isNew() && !this.canonicalState) {
     return;
   }
-  this.inverseRecord = this.canonicalState;
+  this.inverseRecord = this.buckets.canonical.state;
   this.record.notifyBelongsToChanged(this.key);
   this._super$flushCanonical();
 };
@@ -95,13 +90,6 @@ BelongsToRelationship.prototype.removeRecordFromOwn = function(record) {
   this.inverseRecord = null;
   this._super$removeRecordFromOwn(record);
   this.record.notifyBelongsToChanged(this.key);
-};
-
-BelongsToRelationship.prototype._super$removeCanonicalRecordFromOwn = Relationship.prototype.removeCanonicalRecordFromOwn;
-BelongsToRelationship.prototype.removeCanonicalRecordFromOwn = function(record) {
-  if (!this.canonicalMembers.has(record)) { return;}
-  this.canonicalState = null;
-  this._super$removeCanonicalRecordFromOwn(record);
 };
 
 BelongsToRelationship.prototype.findRecord = function() {

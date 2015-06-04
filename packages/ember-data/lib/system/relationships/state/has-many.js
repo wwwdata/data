@@ -2,19 +2,25 @@ import { PromiseManyArray } from "ember-data/system/promise-proxies";
 import Relationship from "ember-data/system/relationships/state/relationship";
 import OrderedSet from "ember-data/system/ordered-set";
 import ManyArray from "ember-data/system/many-array";
+import HasManyBucket from "./buckets/has-many";
 
 var map = Ember.EnumerableUtils.map;
+function Buckets(store, record, inverseKey, relationshipMeta, relationship) {
+  this.canonical = new HasManyBucket('canonical', store, record, inverseKey, relationshipMeta, relationship);
+  this.current = new HasManyBucket('current', store, record, inverseKey, relationshipMeta, relationship);
+}
 
 var ManyRelationship = function(store, record, inverseKey, relationshipMeta) {
   this._super$constructor(store, record, inverseKey, relationshipMeta);
+  this.buckets = new Buckets(store, record, inverseKey, relationshipMeta, this);
   this.belongsToType = relationshipMeta.type;
-  this.canonicalState = [];
   this.manyArray = ManyArray.create({
-    canonicalState: this.canonicalState,
+    canonicalState: this.buckets.canonical.stateArray,
     store: this.store,
     relationship: this,
     type: this.store.modelFor(this.belongsToType),
-    record: record
+    record: record,
+    buckets: this.buckets
   });
   this.isPolymorphic = relationshipMeta.options.polymorphic;
   this.manyArray.isPolymorphic = this.isPolymorphic;
@@ -28,19 +34,6 @@ ManyRelationship.prototype.destroy = function() {
   this.manyArray.destroy();
 };
 
-ManyRelationship.prototype._super$addCanonicalRecord = Relationship.prototype.addCanonicalRecord;
-ManyRelationship.prototype.addCanonicalRecord = function(record, idx) {
-  if (this.canonicalMembers.has(record)) {
-    return;
-  }
-  if (idx !== undefined) {
-    this.canonicalState.splice(idx, 0, record);
-  } else {
-    this.canonicalState.push(record);
-  }
-  this._super$addCanonicalRecord(record, idx);
-};
-
 ManyRelationship.prototype._super$addRecord = Relationship.prototype.addRecord;
 ManyRelationship.prototype.addRecord = function(record, idx) {
   if (this.members.has(record)) {
@@ -50,20 +43,6 @@ ManyRelationship.prototype.addRecord = function(record, idx) {
   this.manyArray.internalAddRecords([record], idx);
 };
 
-ManyRelationship.prototype._super$removeCanonicalRecordFromOwn = Relationship.prototype.removeCanonicalRecordFromOwn;
-ManyRelationship.prototype.removeCanonicalRecordFromOwn = function(record, idx) {
-  var i = idx;
-  if (!this.canonicalMembers.has(record)) {
-    return;
-  }
-  if (i === undefined) {
-    i = this.canonicalState.indexOf(record);
-  }
-  if (i > -1) {
-    this.canonicalState.splice(i, 1);
-  }
-  this._super$removeCanonicalRecordFromOwn(record, idx);
-};
 
 ManyRelationship.prototype._super$flushCanonical = Relationship.prototype.flushCanonical;
 ManyRelationship.prototype.flushCanonical = function() {
@@ -114,7 +93,7 @@ ManyRelationship.prototype.reload = function() {
 };
 
 ManyRelationship.prototype.computeChanges = function(records) {
-  var members = this.canonicalMembers;
+  var members = this.buckets.canonical.members;
   var recordsToRemove = [];
   var length;
   var record;
