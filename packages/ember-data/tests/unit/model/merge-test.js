@@ -19,10 +19,13 @@ test("When a record is in flight, changes can be made", function() {
     }
   });
   var person;
-  var store = createStore({ adapter: adapter });
+  var store = createStore({
+    adapter: adapter,
+    person: Person
+  });
 
   run(function() {
-    person = store.createRecord(Person, { name: "Tom Dale" });
+    person = store.createRecord('person', { name: "Tom Dale" });
   });
 
   // Make sure saving isn't resolved synchronously
@@ -40,6 +43,41 @@ test("When a record is in flight, changes can be made", function() {
   });
 });
 
+test("Make sure snapshot is created at save time not at flush time", function() {
+  expect(5);
+
+  var adapter = DS.Adapter.extend({
+    updateRecord: function(store, type, snapshot) {
+      equal(snapshot.attr('name'), 'Thomas Dale');
+
+      return Ember.RSVP.resolve();
+    }
+  });
+
+  var store = createStore({ adapter: adapter, person: Person });
+  var person;
+
+  run(function() {
+    person = store.push('person', { id: 1, name: "Tom" });
+    person.set('name', "Thomas Dale");
+  });
+
+  run(function() {
+    var promise = person.save();
+
+    equal(person.get('name'), "Thomas Dale");
+
+    person.set('name', "Tomasz Dale");
+
+    equal(person.get('name'), "Tomasz Dale", "the local changes applied on top");
+
+    promise.then(async(function(person) {
+      equal(person.get('isDirty'), true, "The person is still dirty");
+      equal(person.get('name'), "Tomasz Dale", "The local changes apply");
+    }));
+  });
+});
+
 test("When a record is in flight, pushes are applied underneath the in flight changes", function() {
   expect(6);
 
@@ -52,11 +90,14 @@ test("When a record is in flight, pushes are applied underneath the in flight ch
     }
   });
 
-  var store = createStore({ adapter: adapter });
+  var store = createStore({
+    adapter: adapter,
+    person: Person
+  });
   var person;
 
   run(function() {
-    person = store.push(Person, { id: 1, name: "Tom" });
+    person = store.push('person', { id: 1, name: "Tom" });
     person.set('name', "Thomas Dale");
   });
 
@@ -67,7 +108,7 @@ test("When a record is in flight, pushes are applied underneath the in flight ch
 
     person.set('name', "Tomasz Dale");
 
-    store.push(Person, { id: 1, name: "Tommy Dale", city: "PDX" });
+    store.push('person', { id: 1, name: "Tommy Dale", city: "PDX" });
 
     equal(person.get('name'), "Tomasz Dale", "the local changes applied on top");
     equal(person.get('city'), "PDX", "the pushed change is available");
@@ -81,11 +122,14 @@ test("When a record is in flight, pushes are applied underneath the in flight ch
 });
 
 test("When a record is dirty, pushes are overridden by local changes", function() {
-  var store = createStore({ adapter: DS.Adapter });
+  var store = createStore({
+    adapter: DS.Adapter,
+    person: Person
+  });
   var person;
 
   run(function() {
-    person = store.push(Person, { id: 1, name: "Tom Dale", city: "San Francisco" });
+    person = store.push('person', { id: 1, name: "Tom Dale", city: "San Francisco" });
     person.set('name', "Tomasz Dale");
   });
 
@@ -94,12 +138,40 @@ test("When a record is dirty, pushes are overridden by local changes", function(
   equal(person.get('city'), "San Francisco", "the original data applies");
 
   run(function() {
-    store.push(Person, { id: 1, name: "Thomas Dale", city: "Portland" });
+    store.push('person', { id: 1, name: "Thomas Dale", city: "Portland" });
   });
 
   equal(person.get('isDirty'), true, "the local changes are reapplied");
   equal(person.get('name'), "Tomasz Dale", "the local changes are reapplied");
   equal(person.get('city'), "Portland", "if there are no local changes, the new data applied");
+});
+
+test("When a record is invalid, pushes are overridden by local changes", function() {
+  var store = createStore({
+    adapter: DS.Adapter,
+    person: Person
+  });
+  var person;
+
+  run(function() {
+    person = store.push('person', { id: 1, name: "Brendan McLoughlin", city: "Boston" });
+    person.set('name', "Brondan McLoughlin");
+    person.send('becameInvalid');
+  });
+
+  equal(person.get('isDirty'), true, "the person is currently dirty");
+  equal(person.get('isValid'), false, "the person is currently invalid");
+  equal(person.get('name'), "Brondan McLoughlin", "the update was effective");
+  equal(person.get('city'), "Boston", "the original data applies");
+
+  run(function() {
+    store.push('person', { id: 1, name: "bmac", city: "Prague" });
+  });
+
+  equal(person.get('isDirty'), true, "the local changes are reapplied");
+  equal(person.get('isValid'), false, "record is still invalid");
+  equal(person.get('name'), "Brondan McLoughlin", "the local changes are reapplied");
+  equal(person.get('city'), "Prague", "if there are no local changes, the new data applied");
 });
 
 test("A record with no changes can still be saved", function() {
@@ -111,11 +183,14 @@ test("A record with no changes can still be saved", function() {
     }
   });
 
-  var store = createStore({ adapter: adapter });
+  var store = createStore({
+    adapter: adapter,
+    person: Person
+  });
   var person;
 
   run(function() {
-    person = store.push(Person, { id: 1, name: "Tom Dale" });
+    person = store.push('person', { id: 1, name: "Tom Dale" });
   });
 
   run(function() {
@@ -134,11 +209,14 @@ test("A dirty record can be reloaded", function() {
     }
   });
 
-  var store = createStore({ adapter: adapter });
+  var store = createStore({
+    adapter: adapter,
+    person: Person
+  });
   var person;
 
   run(function() {
-    person = store.push(Person, { id: 1, name: "Tom Dale" });
+    person = store.push('person', { id: 1, name: "Tom Dale" });
     person.set('name', "Tomasz Dale");
   });
 

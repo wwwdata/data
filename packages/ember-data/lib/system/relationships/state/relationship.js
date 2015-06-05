@@ -2,7 +2,7 @@ import OrderedSet from "ember-data/system/ordered-set";
 
 var forEach = Ember.EnumerableUtils.forEach;
 
-var Relationship = function(store, record, inverseKey, relationshipMeta) {
+function Relationship(store, record, inverseKey, relationshipMeta) {
   this.members = new OrderedSet();
   this.canonicalMembers = new OrderedSet();
   this.store = store;
@@ -13,10 +13,10 @@ var Relationship = function(store, record, inverseKey, relationshipMeta) {
   this.relationshipMeta = relationshipMeta;
   //This probably breaks for polymorphic relationship in complex scenarios, due to
   //multiple possible modelNames
-  this.inverseKeyForImplicit = this.store.modelFor(this.record.constructor).modelName + this.key;
+  this.inverseKeyForImplicit = this.record.constructor.modelName + this.key;
   this.linkPromise = null;
   this.hasData = false;
-};
+}
 
 Relationship.prototype = {
   constructor: Relationship,
@@ -76,7 +76,7 @@ Relationship.prototype = {
     if (!this.canonicalMembers.has(record)) {
       this.canonicalMembers.add(record);
       if (this.inverseKey) {
-        record._relationships[this.inverseKey].addCanonicalRecord(this.record);
+        record._relationships.get(this.inverseKey).addCanonicalRecord(this.record);
       } else {
         if (!record._implicitRelationships[this.inverseKeyForImplicit]) {
           record._implicitRelationships[this.inverseKeyForImplicit] = new Relationship(this.store, record, this.key,  { options: {} });
@@ -117,7 +117,7 @@ Relationship.prototype = {
       this.members.addWithIndex(record, idx);
       this.notifyRecordRelationshipAdded(record, idx);
       if (this.inverseKey) {
-        record._relationships[this.inverseKey].addRecord(this.record);
+        record._relationships.get(this.inverseKey).addRecord(this.record);
       } else {
         if (!record._implicitRelationships[this.inverseKeyForImplicit]) {
           record._implicitRelationships[this.inverseKeyForImplicit] = new Relationship(this.store, record, this.key,  { options: {} });
@@ -144,12 +144,12 @@ Relationship.prototype = {
 
   addRecordToInverse: function(record) {
     if (this.inverseKey) {
-      record._relationships[this.inverseKey].addRecord(this.record);
+      record._relationships.get(this.inverseKey).addRecord(this.record);
     }
   },
 
   removeRecordFromInverse: function(record) {
-    var inverseRelationship = record._relationships[this.inverseKey];
+    var inverseRelationship = record._relationships.get(this.inverseKey);
     //Need to check for existence, as the record might unloading at the moment
     if (inverseRelationship) {
       inverseRelationship.removeRecordFromOwn(this.record);
@@ -163,7 +163,7 @@ Relationship.prototype = {
   },
 
   removeCanonicalRecordFromInverse: function(record) {
-    var inverseRelationship = record._relationships[this.inverseKey];
+    var inverseRelationship = record._relationships.get(this.inverseKey);
     //Need to check for existence, as the record might unloading at the moment
     if (inverseRelationship) {
       inverseRelationship.removeCanonicalRecordFromOwn(this.record);
@@ -181,7 +181,7 @@ Relationship.prototype = {
     //TODO remove once we have proper diffing
     var newRecords = [];
     for (var i=0; i<this.members.list.length; i++) {
-      if (this.members.list[i].get('isNew')) {
+      if (this.members.list[i].isNew()) {
         newRecords.push(this.members.list[i]);
       }
     }
@@ -204,8 +204,8 @@ Relationship.prototype = {
   },
 
   updateLink: function(link) {
-    Ember.warn("You have pushed a record of type '" + this.record.constructor.modelName + "' with '" + this.key + "' as a link, but the association is not an async relationship.", this.isAsync);
-    Ember.assert("You have pushed a record of type '" + this.record.constructor.modelName + "' with '" + this.key + "' as a link, but the value of that link is not a string.", typeof link === 'string' || link === null);
+    Ember.warn("You have pushed a record of type '" + this.record.type.modelName + "' with '" + this.key + "' as a link, but the association is not an async relationship.", this.isAsync);
+    Ember.assert("You have pushed a record of type '" + this.record.type.modelName + "' with '" + this.key + "' as a link, but the value of that link is not a string.", typeof link === 'string' || link === null);
     if (link !== this.link) {
       this.link = link;
       this.linkPromise = null;

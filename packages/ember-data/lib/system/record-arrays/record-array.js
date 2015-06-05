@@ -90,8 +90,8 @@ export default Ember.ArrayProxy.extend(Ember.Evented, {
   */
   objectAtContent: function(index) {
     var content = get(this, 'content');
-
-    return content.objectAt(index);
+    var internalModel = content.objectAt(index);
+    return internalModel && internalModel.getRecord();
   },
 
   /**
@@ -113,53 +113,37 @@ export default Ember.ArrayProxy.extend(Ember.Evented, {
     if (get(this, 'isUpdating')) { return; }
 
     var store = get(this, 'store');
-    var type = get(this, 'type');
+    var modelName = get(this, 'type.modelName');
 
-    return store.fetchAll(type, this);
+    return store.fetchAll(modelName, this);
   },
 
   /**
-    Adds a record to the `RecordArray` without duplicates
+    Adds an internal model to the `RecordArray` without duplicates
 
-    @method addRecord
+    @method addInternalModel
     @private
-    @param {DS.Model} record
-    @param {DS.Model} an optional index to insert at
+    @param {InternalModel} internalModel
+    @param {number} an optional index to insert at
   */
-  addRecord: function(record, idx) {
+  addInternalModel: function(internalModel, idx) {
     var content = get(this, 'content');
     if (idx === undefined) {
-      content.addObject(record);
-    } else if (!content.contains(record)) {
-      content.insertAt(idx, record);
+      content.addObject(internalModel);
+    } else if (!content.contains(internalModel)) {
+      content.insertAt(idx, internalModel);
     }
   },
 
-  _pushRecord: function(record) {
-    get(this, 'content').pushObject(record);
-  },
-
   /**
-    Adds a record to the `RecordArray`, but allows duplicates
+    Removes an internalModel to the `RecordArray`.
 
-    @deprecated
-    @method pushRecord
+    @method removeInternalModel
     @private
-    @param {DS.Model} record
+    @param {InternalModel} internalModel
   */
-  pushRecord: function(record) {
-    Ember.deprecate('Usage of `recordArray.pushRecord` is deprecated, use `recordArray.addObject` instead');
-    this._pushRecord(record);
-  },
-  /**
-    Removes a record to the `RecordArray`.
-
-    @method removeRecord
-    @private
-    @param {DS.Model} record
-  */
-  removeRecord: function(record) {
-    get(this, 'content').removeObject(record);
+  removeInternalModel: function(internalModel) {
+    get(this, 'content').removeObject(internalModel);
   },
 
   /**
@@ -191,7 +175,7 @@ export default Ember.ArrayProxy.extend(Ember.Evented, {
   _dissociateFromOwnRecords: function() {
     var array = this;
 
-    this.forEach(function(record) {
+    this.get('content').forEach(function(record) {
       var recordArrays = record._recordArrays;
 
       if (recordArrays) {
@@ -206,10 +190,7 @@ export default Ember.ArrayProxy.extend(Ember.Evented, {
   */
   _unregisterFromManager: function() {
     var manager = get(this, 'manager');
-    //We will stop needing this stupid if statement soon, once manyArray are refactored to not be RecordArrays
-    if (manager) {
-      manager.unregisterFilteredRecordArray(this);
-    }
+    manager.unregisterFilteredRecordArray(this);
   },
 
   willDestroy: function() {

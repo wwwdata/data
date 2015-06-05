@@ -29,7 +29,7 @@ function initializeStore(adapter) {
 
 module("integration/store - destroy", {
   setup: function() {
-    initializeStore(DS.FixtureAdapter.extend());
+    initializeStore(DS.Adapter.extend());
   }
 });
 
@@ -53,11 +53,11 @@ function tap(obj, methodName, callback) {
 asyncTest("destroying record during find doesn't cause error", function() {
   expect(0);
 
-  var TestAdapter = DS.FixtureAdapter.extend({
+  var TestAdapter = DS.Adapter.extend({
     find: function(store, type, id, snapshot) {
       return new Ember.RSVP.Promise(function(resolve, reject) {
         Ember.run.next(function() {
-          store.unloadAll(type);
+          store.unloadAll(type.modelName);
           reject();
         });
       });
@@ -81,7 +81,7 @@ asyncTest("destroying record during find doesn't cause error", function() {
 asyncTest("find calls do not resolve when the store is destroyed", function() {
   expect(0);
 
-  var TestAdapter = DS.FixtureAdapter.extend({
+  var TestAdapter = DS.Adapter.extend({
     find: function(store, type, id, snapshot) {
       store.destroy();
       Ember.RSVP.resolve(null);
@@ -192,7 +192,7 @@ function ajaxResponse(value) {
     passedVerb = verb;
     passedHash = hash;
 
-    return Ember.RSVP.resolve(value);
+    return run(Ember.RSVP, 'resolve', Ember.copy(value, true));
   };
 }
 
@@ -414,4 +414,33 @@ test("Using store#serializerFor should not throw an error when looking up the ap
     var applicationSerializer = store.serializerFor('application');
     ok(applicationSerializer);
   });
+});
+
+module("integration/store - deleteRecord", {
+  setup: function() {
+    initializeStore(DS.RESTAdapter.extend());
+  }
+});
+
+test("Using store#deleteRecord should mark the model for removal", function() {
+  expect(3);
+  var person;
+
+  run(function() {
+    person = store.push('person', {
+      id: 1,
+      name: 'Tom Dale'
+    });
+  });
+
+  ok(store.hasRecordForId('person', 1), 'expected the record to be in the store');
+
+  var personDeleteRecord = tap(person, 'deleteRecord');
+
+  run(function() {
+    store.deleteRecord(person);
+  });
+
+  equal(personDeleteRecord.called.length, 1, 'expected person.deleteRecord to have been called');
+  ok(person.get('isDeleted'), 'expect person to be isDeleted');
 });

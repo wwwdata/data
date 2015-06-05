@@ -3,6 +3,8 @@ import Relationship from "ember-data/system/relationships/state/relationship";
 import OrderedSet from "ember-data/system/ordered-set";
 import ManyArray from "ember-data/system/many-array";
 
+var map = Ember.EnumerableUtils.map;
+
 var ManyRelationship = function(store, record, inverseKey, relationshipMeta) {
   this._super$constructor(store, record, inverseKey, relationshipMeta);
   this.belongsToType = relationshipMeta.type;
@@ -11,7 +13,7 @@ var ManyRelationship = function(store, record, inverseKey, relationshipMeta) {
     canonicalState: this.canonicalState,
     store: this.store,
     relationship: this,
-    type: this.belongsToType,
+    type: this.store.modelFor(this.belongsToType),
     record: record
   });
   this.isPolymorphic = relationshipMeta.options.polymorphic;
@@ -84,15 +86,15 @@ ManyRelationship.prototype.removeRecordFromOwn = function(record, idx) {
 };
 
 ManyRelationship.prototype.notifyRecordRelationshipAdded = function(record, idx) {
-  var type = this.relationshipMeta.type;
-  Ember.assert("You cannot add '" + record.constructor.modelName + "' records to the " + this.record.constructor.modelName + "." + this.key + " relationship (only '" + this.belongsToType.modelName + "' allowed)", (function () {
-    if (type.__isMixin) {
-      return type.__mixin.detect(record);
+  var typeClass = this.store.modelFor(this.relationshipMeta.type);
+  Ember.assert("You cannot add '" + record.type.modelName + "' records to the " + this.record.type.modelName + "." + this.key + " relationship (only '" + typeClass.modelName + "' allowed)", (function () {
+    if (typeClass.__isMixin) {
+      return typeClass.__mixin.detect(record.type.PrototypeMixin);
     }
     if (Ember.MODEL_FACTORY_INJECTIONS) {
-      type = type.superclass;
+      typeClass = typeClass.superclass;
     }
-    return record instanceof type;
+    return typeClass.detect(record.type);
   })());
 
   this.record.notifyHasManyAdded(this.key, record, idx);
@@ -153,7 +155,8 @@ ManyRelationship.prototype.fetchLink = function() {
 
 ManyRelationship.prototype.findRecords = function() {
   var manyArray = this.manyArray;
-  return this.store.findMany(manyArray.toArray()).then(function() {
+  //TODO CLEANUP
+  return this.store.findMany(map(manyArray.toArray(), function(rec) { return rec._internalModel; })).then(function() {
     //Goes away after the manyArray refactor
     manyArray.set('isLoaded', true);
     return manyArray;
@@ -180,7 +183,7 @@ ManyRelationship.prototype.getRecords = function() {
       promise: promise
     });
   } else {
-    Ember.assert("You looked up the '" + this.key + "' relationship on a '" + this.record.constructor.modelName + "' with id " + this.record.get('id') +  " but some of the associated records were not loaded. Either make sure they are all loaded together with the parent record, or specify that the relationship is async (`DS.hasMany({ async: true })`)", this.manyArray.isEvery('isEmpty', false));
+    Ember.assert("You looked up the '" + this.key + "' relationship on a '" + this.record.type.modelName + "' with id " + this.record.id +  " but some of the associated records were not loaded. Either make sure they are all loaded together with the parent record, or specify that the relationship is async (`DS.hasMany({ async: true })`)", this.manyArray.isEvery('isEmpty', false));
 
     //TODO(Igor) WTF DO I DO HERE?
     if (!this.manyArray.get('isDestroyed')) {

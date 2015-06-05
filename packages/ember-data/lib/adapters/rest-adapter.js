@@ -10,6 +10,7 @@ import {
   MapWithDefault
 } from "ember-data/system/map";
 var get = Ember.get;
+var set = Ember.set;
 var forEach = Ember.ArrayPolyfills.forEach;
 
 import BuildURLMixin from "ember-data/adapters/build-url-mixin";
@@ -70,8 +71,10 @@ import BuildURLMixin from "ember-data/adapters/build-url-mixin";
 
   For example, if you have a `Person` model:
 
-  ```js
-  App.Person = DS.Model.extend({
+  ```app/models/person.js
+  import DS from 'ember-data';
+
+  export default DS.Model.extend({
     firstName: DS.attr('string'),
     lastName: DS.attr('string'),
     occupation: DS.attr('string')
@@ -98,8 +101,10 @@ import BuildURLMixin from "ember-data/adapters/build-url-mixin";
   Endpoint paths can be prefixed with a `namespace` by setting the namespace
   property on the adapter:
 
-  ```js
-  DS.RESTAdapter.reopen({
+  ```app/adapters/application.js
+  import DS from 'ember-data';
+
+  export default DS.RESTAdapter.extend({
     namespace: 'api/1'
   });
   ```
@@ -109,8 +114,10 @@ import BuildURLMixin from "ember-data/adapters/build-url-mixin";
 
   An adapter can target other hosts by setting the `host` property.
 
-  ```js
-  DS.RESTAdapter.reopen({
+  ```app/adapters/application.js
+  import DS from 'ember-data';
+
+  export default DS.RESTAdapter.extend({
     host: 'https://api.example.com'
   });
   ```
@@ -122,8 +129,10 @@ import BuildURLMixin from "ember-data/adapters/build-url-mixin";
   object and Ember Data will send them along with each ajax request.
 
 
-  ```js
-  App.ApplicationAdapter = DS.RESTAdapter.extend({
+  ```app/adapters/application.js
+  import DS from 'ember-data';
+
+  export default DS.RESTAdapter.extend({
     headers: {
       "API_KEY": "secret key",
       "ANOTHER_HEADER": "Some header value"
@@ -135,8 +144,10 @@ import BuildURLMixin from "ember-data/adapters/build-url-mixin";
   headers. In the example below, the `session` object has been
   injected into an adapter by Ember's container.
 
-  ```js
-  App.ApplicationAdapter = DS.RESTAdapter.extend({
+  ```app/adapters/application.js
+  import DS from 'ember-data';
+
+  export default DS.RESTAdapter.extend({
     headers: function() {
       return {
         "API_KEY": this.get("session.authToken"),
@@ -153,8 +164,10 @@ import BuildURLMixin from "ember-data/adapters/build-url-mixin";
   function to set the property into a non-cached mode causing the headers to
   be recomputed with every request.
 
-  ```js
-  App.ApplicationAdapter = DS.RESTAdapter.extend({
+  ```app/adapters/application.js
+  import DS from 'ember-data';
+
+  export default DS.RESTAdapter.extend({
     headers: function() {
       return {
         "API_KEY": Ember.get(document.cookie.match(/apiKey\=([^;]*)/), "1"),
@@ -170,7 +183,7 @@ import BuildURLMixin from "ember-data/adapters/build-url-mixin";
   @extends DS.Adapter
   @uses DS.BuildURLMixin
 */
-export default Adapter.extend(BuildURLMixin, {
+var RestAdapter = Adapter.extend(BuildURLMixin, {
   defaultSerializer: '-rest',
 
   /**
@@ -194,7 +207,9 @@ export default Adapter.extend(BuildURLMixin, {
     In case you want to sort the query parameters with a different criteria, set
     `sortQueryParams` to your custom sort function.
 
-    ```js
+    ```app/adapters/application.js
+    import DS from 'ember-data';
+
     export default DS.RESTAdapter.extend({
       sortQueryParams: function(params) {
         var sortedKeys = Object.keys(params).sort().reverse();
@@ -280,8 +295,10 @@ export default Adapter.extend(BuildURLMixin, {
     Endpoint paths can be prefixed with a `namespace` by setting the namespace
     property on the adapter:
 
-    ```javascript
-    DS.RESTAdapter.reopen({
+    ```app/adapters/application.js
+    import DS from 'ember-data';
+
+    export default DS.RESTAdapter.extend({
       namespace: 'api/1'
     });
     ```
@@ -295,8 +312,10 @@ export default Adapter.extend(BuildURLMixin, {
   /**
     An adapter can target other hosts by setting the `host` property.
 
-    ```javascript
-    DS.RESTAdapter.reopen({
+    ```app/adapters/application.js
+    import DS from 'ember-data';
+
+    export default DS.RESTAdapter.extend({
       host: 'https://api.example.com'
     });
     ```
@@ -314,8 +333,10 @@ export default Adapter.extend(BuildURLMixin, {
     along with each ajax request. For dynamic headers see [headers
     customization](/api/data/classes/DS.RESTAdapter.html#toc_headers-customization).
 
-    ```javascript
-    App.ApplicationAdapter = DS.RESTAdapter.extend({
+    ```app/adapters/application.js
+    import DS from 'ember-data';
+
+    export default DS.RESTAdapter.extend({
       headers: {
         "API_KEY": "secret key",
         "ANOTHER_HEADER": "Some header value"
@@ -338,7 +359,7 @@ export default Adapter.extend(BuildURLMixin, {
 
     @method find
     @param {DS.Store} store
-    @param {subclass of DS.Model} type
+    @param {DS.Model} type
     @param {String} id
     @param {DS.Snapshot} snapshot
     @return {Promise} promise
@@ -357,7 +378,7 @@ export default Adapter.extend(BuildURLMixin, {
     @private
     @method findAll
     @param {DS.Store} store
-    @param {subclass of DS.Model} type
+    @param {DS.Model} type
     @param {String} sinceToken
     @return {Promise} promise
   */
@@ -386,7 +407,7 @@ export default Adapter.extend(BuildURLMixin, {
     @private
     @method findQuery
     @param {DS.Store} store
-    @param {subclass of DS.Model} type
+    @param {DS.Model} type
     @param {Object} query
     @return {Promise} promise
   */
@@ -428,7 +449,7 @@ export default Adapter.extend(BuildURLMixin, {
 
     @method findMany
     @param {DS.Store} store
-    @param {subclass of DS.Model} type
+    @param {DS.Model} type
     @param {Array} ids
     @param {Array} snapshots
     @return {Promise} promise
@@ -521,7 +542,7 @@ export default Adapter.extend(BuildURLMixin, {
 
     @method createRecord
     @param {DS.Store} store
-    @param {subclass of DS.Model} type
+    @param {DS.Model} type
     @param {DS.Snapshot} snapshot
     @return {Promise} promise
   */
@@ -547,7 +568,7 @@ export default Adapter.extend(BuildURLMixin, {
 
     @method updateRecord
     @param {DS.Store} store
-    @param {subclass of DS.Model} type
+    @param {DS.Model} type
     @param {DS.Snapshot} snapshot
     @return {Promise} promise
   */
@@ -570,7 +591,7 @@ export default Adapter.extend(BuildURLMixin, {
 
     @method deleteRecord
     @param {DS.Store} store
-    @param {subclass of DS.Model} type
+    @param {DS.Model} type
     @param {DS.Snapshot} snapshot
     @return {Promise} promise
   */
@@ -598,7 +619,7 @@ export default Adapter.extend(BuildURLMixin, {
   },
 
   // http://stackoverflow.com/questions/417142/what-is-the-maximum-length-of-a-url-in-different-browsers
-  maxUrlLength: 2048,
+  maxURLLength: 2048,
 
   /**
     Organize records into groups, each of which is to be passed to separate
@@ -625,21 +646,21 @@ export default Adapter.extend(BuildURLMixin, {
   groupRecordsForFindMany: function (store, snapshots) {
     var groups = MapWithDefault.create({ defaultValue: function() { return []; } });
     var adapter = this;
-    var maxUrlLength = this.maxUrlLength;
+    var maxURLLength = this.maxURLLength;
 
     forEach.call(snapshots, function(snapshot) {
       var baseUrl = adapter._stripIDFromURL(store, snapshot);
       groups.get(baseUrl).push(snapshot);
     });
 
-    function splitGroupToFitInUrl(group, maxUrlLength, paramNameLength) {
+    function splitGroupToFitInUrl(group, maxURLLength, paramNameLength) {
       var baseUrl = adapter._stripIDFromURL(store, group[0]);
       var idsSize = 0;
       var splitGroups = [[]];
 
       forEach.call(group, function(snapshot) {
         var additionalLength = encodeURIComponent(snapshot.id).length + paramNameLength;
-        if (baseUrl.length + idsSize + additionalLength >= maxUrlLength) {
+        if (baseUrl.length + idsSize + additionalLength >= maxURLLength) {
           idsSize = 0;
           splitGroups.push([]);
         }
@@ -656,7 +677,7 @@ export default Adapter.extend(BuildURLMixin, {
     var groupsArray = [];
     groups.forEach(function(group, key) {
       var paramNameLength = '&ids%5B%5D='.length;
-      var splitGroups = splitGroupToFitInUrl(group, maxUrlLength, paramNameLength);
+      var splitGroups = splitGroupToFitInUrl(group, maxURLLength, paramNameLength);
 
       forEach.call(splitGroups, function(splitGroup) {
         groupsArray.push(splitGroup);
@@ -679,8 +700,10 @@ export default Adapter.extend(BuildURLMixin, {
 
     Example
 
-    ```javascript
-    App.ApplicationAdapter = DS.RESTAdapter.extend({
+    ```app/adapters/application.js
+    import DS from 'ember-data';
+
+    export default DS.RESTAdapter.extend({
       ajaxError: function(jqXHR) {
         var error = this._super(jqXHR);
 
@@ -838,3 +861,20 @@ function endsWith(string, suffix) {
     return string.endsWith(suffix);
   }
 }
+
+if (Ember.platform.hasPropertyAccessors) {
+  Ember.defineProperty(RestAdapter.prototype, 'maxUrlLength', {
+    enumerable: false,
+    get: function() {
+      Ember.deprecate('maxUrlLength has been deprecated (wrong casing). You should use maxURLLength instead.');
+      return this.maxURLLength;
+    },
+
+    set: function(value) {
+      Ember.deprecate('maxUrlLength has been deprecated (wrong casing). You should use maxURLLength instead.');
+      set(this, 'maxURLLength', value);
+    }
+  });
+}
+
+export default RestAdapter;

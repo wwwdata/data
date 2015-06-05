@@ -127,7 +127,7 @@ test("adapter.findMany only gets unique IDs even if duplicate IDs are present in
 });
 
 // This tests the case where a serializer materializes a has-many
-// relationship as a reference that it can fetch lazily. The most
+// relationship as a internalModel that it can fetch lazily. The most
 // common use case of this is to provide a URL to a collection that
 // is loaded later.
 test("A serializer can materialize a hasMany as an opaque token that can be lazily fetched via the adapter's findHasMany hook", function() {
@@ -150,7 +150,7 @@ test("A serializer can materialize a hasMany as an opaque token that can be lazi
 
   env.adapter.findHasMany = function(store, snapshot, link, relationship) {
     equal(link, "/posts/1/comments", "findHasMany link was /posts/1/comments");
-    equal(relationship.type.modelName, "comment", "relationship was passed correctly");
+    equal(relationship.type, "comment", "relationship was passed correctly");
 
     return Ember.RSVP.resolve([
       { id: 1, body: "First" },
@@ -340,7 +340,7 @@ test("A hasMany relationship can be reloaded if it was fetched via a link", func
   };
 
   env.adapter.findHasMany = function(store, snapshot, link, relationship) {
-    equal(relationship.type, Comment, "findHasMany relationship type was Comment");
+    equal(relationship.type, 'comment', "findHasMany relationship type was Comment");
     equal(relationship.key, 'comments', "findHasMany relationship key was comments");
     equal(link, "/posts/1/comments", "findHasMany link was /posts/1/comments");
 
@@ -358,7 +358,7 @@ test("A hasMany relationship can be reloaded if it was fetched via a link", func
       equal(comments.get('length'), 2, "comments have 2 length");
 
       env.adapter.findHasMany = function(store, snapshot, link, relationship) {
-        equal(relationship.type, Comment, "findHasMany relationship type was Comment");
+        equal(relationship.type, 'comment', "findHasMany relationship type was Comment");
         equal(relationship.key, 'comments', "findHasMany relationship key was comments");
         equal(link, "/posts/1/comments", "findHasMany link was /posts/1/comments");
 
@@ -570,7 +570,7 @@ test("An updated `links` value should invalidate a relationship cache", function
   });
 
   env.adapter.findHasMany = function(store, snapshot, link, relationship) {
-    equal(relationship.type.modelName, "comment", "relationship was passed correctly");
+    equal(relationship.type, "comment", "relationship was passed correctly");
 
     if (link === '/first') {
       return Ember.RSVP.resolve([
@@ -970,7 +970,7 @@ test("dual non-async HM <-> BT", function() {
 
       deepEqual(post, commentPost, 'expect the new comments post, to be the correct post');
       ok(postComments, "comments should exist");
-      equal(postCommentsLength, 2, "comment's post should have a reference back to comment");
+      equal(postCommentsLength, 2, "comment's post should have a internalModel back to comment");
       ok(postComments && postComments.indexOf(firstComment) !== -1, 'expect to contain first comment');
       ok(postComments && postComments.indexOf(comment) !== -1, 'expected to contain the new comment');
     });
@@ -1218,7 +1218,7 @@ test("Relationship.clear removes all records correctly", function() {
   });
 
   run(function() {
-    post._relationships['comments'].clear();
+    post._internalModel._relationships.get('comments').clear();
     var comments = Ember.A(env.store.all('comment'));
     deepEqual(comments.mapBy('post'), [null, null, null]);
   });
@@ -1268,24 +1268,42 @@ test("adding and removing records from hasMany relationship #2666", function() {
   var Post = DS.Model.extend({
     comments: DS.hasMany('comment', { async: true })
   });
-  Post.reopenClass({
-    FIXTURES: [
-      { id: 1, comments: [1, 2, 3] }
-    ]
-  });
+  var POST_FIXTURES = [
+    { id: 1, comments: [1, 2, 3] }
+  ];
 
   var Comment = DS.Model.extend({
     post: DS.belongsTo('post')
   });
-  Comment.reopenClass({
-    FIXTURES: [
-      { id: 1 },
-      { id: 2 },
-      { id: 3 }
-    ]
+
+  var COMMENT_FIXTURES = [
+    { id: 1 },
+    { id: 2 },
+    { id: 3 }
+  ];
+
+  env = setupStore({
+    post: Post,
+    comment: Comment,
+    adapter: DS.RESTAdapter
   });
 
-  env = setupStore({ post: Post, comment: Comment, adapter: DS.FixtureAdapter });
+  env.registry.register('adapter:comment', DS.RESTAdapter.extend({
+    deleteRecord: function(record) {
+      return Ember.RSVP.resolve();
+    },
+    updateRecord: function(record) {
+      return Ember.RSVP.resolve();
+    },
+    createRecord: function() {
+      return Ember.RSVP.resolve();
+    }
+  }));
+
+  run(function() {
+    env.store.pushMany('post', POST_FIXTURES);
+    env.store.pushMany('comment', COMMENT_FIXTURES);
+  });
 
   run(function() {
     stop();
@@ -1332,7 +1350,7 @@ test("hasMany hasData async loaded", function () {
 
   run(function() {
     store.find('chapter', 1).then(function(chapter) {
-      var relationship = chapter._relationships['pages'];
+      var relationship = chapter._internalModel._relationships.get('pages');
       equal(relationship.hasData, true, 'relationship has data');
     });
   });
@@ -1347,7 +1365,7 @@ test("hasMany hasData sync loaded", function () {
 
   run(function() {
     store.find('chapter', 1).then(function(chapter) {
-      var relationship = chapter._relationships['pages'];
+      var relationship = chapter._internalModel._relationships.get('pages');
       equal(relationship.hasData, true, 'relationship has data');
     });
   });
@@ -1366,7 +1384,7 @@ test("hasMany hasData async not loaded", function () {
 
   run(function() {
     store.find('chapter', 1).then(function(chapter) {
-      var relationship = chapter._relationships['pages'];
+      var relationship = chapter._internalModel._relationships.get('pages');
       equal(relationship.hasData, false, 'relationship does not have data');
     });
   });
@@ -1381,7 +1399,7 @@ test("hasMany hasData sync not loaded", function () {
 
   run(function() {
     store.find('chapter', 1).then(function(chapter) {
-      var relationship = chapter._relationships['pages'];
+      var relationship = chapter._internalModel._relationships.get('pages');
       equal(relationship.hasData, false, 'relationship does not have data');
     });
   });
@@ -1396,7 +1414,7 @@ test("hasMany hasData async created", function () {
 
   run(function() {
     var chapter = store.createRecord('chapter', { title: 'The Story Begins' });
-    var relationship = chapter._relationships['pages'];
+    var relationship = chapter._internalModel._relationships.get('pages');
     equal(relationship.hasData, true, 'relationship has data');
   });
 });
@@ -1406,7 +1424,24 @@ test("hasMany hasData sync created", function () {
 
   run(function() {
     var chapter = store.createRecord('chapter', { title: 'The Story Begins' });
-    var relationship = chapter._relationships['pages'];
+    var relationship = chapter._internalModel._relationships.get('pages');
     equal(relationship.hasData, true, 'relationship has data');
+  });
+});
+
+test("Model's hasMany relationship should not be created during model creation", function () {
+  var user;
+  run(function () {
+    user = env.store.push('user', { id: 1 });
+    ok(!user._internalModel._relationships.has('messages'), 'Newly created record should not have relationships');
+  });
+});
+
+test("Model's belongsTo relationship should be created during 'get' method", function () {
+  var user;
+  run(function () {
+    user = env.store.createRecord('user');
+    user.get('messages');
+    ok(user._internalModel._relationships.has('messages'), "Newly created record with relationships in params passed in its constructor should have relationships");
   });
 });

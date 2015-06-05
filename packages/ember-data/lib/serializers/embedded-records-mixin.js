@@ -1,4 +1,3 @@
-var get = Ember.get;
 var forEach = Ember.EnumerableUtils.forEach;
 var camelize = Ember.String.camelize;
 
@@ -12,8 +11,10 @@ var camelize = Ember.String.camelize;
 
   Below is an example of a per-type serializer ('post' type).
 
-  ```js
-  App.PostSerializer = DS.RESTSerializer.extend(DS.EmbeddedRecordsMixin, {
+  ```app/serializers/post.js
+  import DS from 'ember-data';
+
+  export default DS.RESTSerializer.extend(DS.EmbeddedRecordsMixin, {
     attrs: {
       author: { embedded: 'always' },
       comments: { serialize: 'ids' }
@@ -114,9 +115,9 @@ var EmbeddedRecordsMixin = Ember.Mixin.create({
     }
     ```
    @method normalize
-   @param {subclass of DS.Model} typeClass
+   @param {DS.Model} typeClass
    @param {Object} hash to be normalized
-   @param {String} key the hash has been referenced by
+   @param {String} prop the hash has been referenced by
    @return {Object} the normalized hash
   **/
   normalize: function(typeClass, hash, prop) {
@@ -153,8 +154,10 @@ var EmbeddedRecordsMixin = Ember.Mixin.create({
 
     Use a custom (type) serializer for the post model to configure embedded author
 
-    ```js
-    App.PostSerializer = DS.RESTSerializer.extend(DS.EmbeddedRecordsMixin, {
+    ```app/serializers/post.js
+    import DS from 'ember-data;
+
+    export default DS.RESTSerializer.extend(DS.EmbeddedRecordsMixin, {
       attrs: {
         author: {embedded: 'always'}
       }
@@ -230,8 +233,10 @@ var EmbeddedRecordsMixin = Ember.Mixin.create({
 
     Use a custom (type) serializer for the post model to configure embedded comments
 
-    ```js
-    App.PostSerializer = DS.RESTSerializer.extend(DS.EmbeddedRecordsMixin, {
+    ```app/serializers/post.js
+    import DS from 'ember-data;
+
+    export default DS.RESTSerializer.extend(DS.EmbeddedRecordsMixin, {
       attrs: {
         comments: {embedded: 'always'}
       }
@@ -267,8 +272,10 @@ var EmbeddedRecordsMixin = Ember.Mixin.create({
 
     To embed the `ids` for a related object (using a hasMany relationship):
 
-    ```js
-    App.PostSerializer = DS.RESTSerializer.extend(DS.EmbeddedRecordsMixin, {
+    ```app/serializers/post.js
+    import DS from 'ember-data;
+
+    export default DS.RESTSerializer.extend(DS.EmbeddedRecordsMixin, {
       attrs: {
         comments: {serialize: 'ids', deserialize: 'records'}
       }
@@ -299,13 +306,17 @@ var EmbeddedRecordsMixin = Ember.Mixin.create({
     }
     var includeIds = this.hasSerializeIdsOption(attr);
     var includeRecords = this.hasSerializeRecordsOption(attr);
-    var key;
+    var key, hasMany;
     if (includeIds) {
       key = this.keyForRelationship(attr, relationship.kind, 'serialize');
       json[key] = snapshot.hasMany(attr, { ids: true });
     } else if (includeRecords) {
       key = this.keyForAttribute(attr, 'serialize');
-      json[key] = snapshot.hasMany(attr).map(function(embeddedSnapshot) {
+      hasMany = snapshot.hasMany(attr);
+
+      Ember.warn("The embedded relationship '" + key + "' is undefined for '" + snapshot.modelName + "' with id '" + snapshot.id + "'. Please include it in your original payload.", Ember.typeOf(hasMany) !== 'undefined');
+
+      json[key] = Ember.A(hasMany).map(function(embeddedSnapshot) {
         var embeddedJson = embeddedSnapshot.record.serialize({ includeId: true });
         this.removeEmbeddedForeignKey(snapshot, embeddedSnapshot, relationship, embeddedJson);
         return embeddedJson;
@@ -336,7 +347,7 @@ var EmbeddedRecordsMixin = Ember.Mixin.create({
       var parentRecord = snapshot.type.inverseFor(relationship.key);
       if (parentRecord) {
         var name = parentRecord.name;
-        var embeddedSerializer = this.store.serializerFor(embeddedSnapshot.type);
+        var embeddedSerializer = this.store.serializerFor(embeddedSnapshot.modelName);
         var parentKey = embeddedSerializer.keyForRelationship(name, parentRecord.kind, 'deserialize');
         if (parentKey) {
           delete json[parentKey];
@@ -391,7 +402,7 @@ function extractEmbeddedRecords(serializer, store, typeClass, partial) {
 
   typeClass.eachRelationship(function(key, relationship) {
     if (serializer.hasDeserializeRecordsOption(key)) {
-      var embeddedTypeClass = store.modelFor(relationship.type.modelName);
+      var embeddedTypeClass = store.modelFor(relationship.type);
       if (relationship.kind === "hasMany") {
         if (relationship.options.polymorphic) {
           extractEmbeddedHasManyPolymorphic(store, key, partial);
@@ -423,7 +434,7 @@ function extractEmbeddedHasMany(store, key, embeddedTypeClass, hash) {
   var embeddedSerializer = store.serializerFor(embeddedTypeClass.modelName);
   forEach(hash[key], function(data) {
     var embeddedRecord = embeddedSerializer.normalize(embeddedTypeClass, data, null);
-    store.push(embeddedTypeClass, embeddedRecord);
+    store.push(embeddedTypeClass.modelName, embeddedRecord);
     ids.push(embeddedRecord.id);
   });
 
@@ -442,11 +453,11 @@ function extractEmbeddedHasManyPolymorphic(store, key, hash) {
     var modelName = data.type;
     var embeddedSerializer = store.serializerFor(modelName);
     var embeddedTypeClass = store.modelFor(modelName);
-    var primaryKey = get(embeddedSerializer, 'primaryKey');
+    // var primaryKey = embeddedSerializer.get('primaryKey');
 
     var embeddedRecord = embeddedSerializer.normalize(embeddedTypeClass, data, null);
-    store.push(embeddedTypeClass, embeddedRecord);
-    ids.push({ id: embeddedRecord[primaryKey], type: modelName });
+    store.push(embeddedTypeClass.modelName, embeddedRecord);
+    ids.push({ id: embeddedRecord.id, type: modelName });
   });
 
   hash[key] = ids;
@@ -460,7 +471,7 @@ function extractEmbeddedBelongsTo(store, key, embeddedTypeClass, hash) {
 
   var embeddedSerializer = store.serializerFor(embeddedTypeClass.modelName);
   var embeddedRecord = embeddedSerializer.normalize(embeddedTypeClass, hash[key], null);
-  store.push(embeddedTypeClass, embeddedRecord);
+  store.push(embeddedTypeClass.modelName, embeddedRecord);
 
   hash[key] = embeddedRecord.id;
   //TODO Need to add a reference to the parent later so relationship works between both `belongsTo` records
@@ -476,12 +487,11 @@ function extractEmbeddedBelongsToPolymorphic(store, key, hash) {
   var modelName = data.type;
   var embeddedSerializer = store.serializerFor(modelName);
   var embeddedTypeClass = store.modelFor(modelName);
-  var primaryKey = get(embeddedSerializer, 'primaryKey');
 
   var embeddedRecord = embeddedSerializer.normalize(embeddedTypeClass, data, null);
-  store.push(embeddedTypeClass, embeddedRecord);
+  store.push(embeddedTypeClass.modelName, embeddedRecord);
 
-  hash[key] = embeddedRecord[primaryKey];
+  hash[key] = embeddedRecord.id;
   hash[key + 'Type'] = modelName;
   return hash;
 }

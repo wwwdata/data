@@ -19,12 +19,18 @@ import normalizeModelName from "ember-data/system/normalize-model-name";
   To declare a one-to-one relationship between two models, use
   `DS.belongsTo`:
 
-  ```javascript
-  App.User = DS.Model.extend({
+  ```app/models/user.js
+  import DS from 'ember-data';
+
+  export default DS.Model.extend({
     profile: DS.belongsTo('profile')
   });
+  ```
 
-  App.Profile = DS.Model.extend({
+  ```app/models/profile.js
+  import DS from 'ember-data';
+
+  export default DS.Model.extend({
     user: DS.belongsTo('user')
   });
   ```
@@ -33,12 +39,18 @@ import normalizeModelName from "ember-data/system/normalize-model-name";
   To declare a one-to-many relationship between two models, use
   `DS.belongsTo` in combination with `DS.hasMany`, like this:
 
-  ```javascript
-  App.Post = DS.Model.extend({
+  ```app/models/post.js
+  import DS from 'ember-data';
+
+  export default DS.Model.extend({
     comments: DS.hasMany('comment')
   });
+  ```
 
-  App.Comment = DS.Model.extend({
+  ```app/models/comment.js
+  import DS from 'ember-data';
+
+  export default DS.Model.extend({
     post: DS.belongsTo('post')
   });
   ```
@@ -46,8 +58,10 @@ import normalizeModelName from "ember-data/system/normalize-model-name";
   You can avoid passing a string as the first parameter. In that case Ember Data
   will infer the type from the key name.
 
-  ```javascript
-  App.Comment = DS.Model.extend({
+  ```app/models/comment.js
+  import DS from 'ember-data';
+
+  export default DS.Model.extend({
     post: DS.belongsTo()
   });
   ```
@@ -89,19 +103,21 @@ function belongsTo(modelName, options) {
 
   return computedPolyfill({
     get: function(key) {
-      return this._relationships[key].getRecord();
+      return this._internalModel._relationships.get(key).getRecord();
     },
     set: function(key, value) {
       if (value === undefined) {
         value = null;
       }
       if (value && value.then) {
-        this._relationships[key].setRecordPromise(value);
+        this._internalModel._relationships.get(key).setRecordPromise(value);
+      } else if (value) {
+        this._internalModel._relationships.get(key).setRecord(value._internalModel);
       } else {
-        this._relationships[key].setRecord(value);
+        this._internalModel._relationships.get(key).setRecord(value);
       }
 
-      return this._relationships[key].getRecord();
+      return this._internalModel._relationships.get(key).getRecord();
     }
   }).meta(meta);
 }

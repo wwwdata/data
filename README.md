@@ -52,8 +52,34 @@ controllers in your app.
 
 First thing's first: tell Ember Data about the models in your
 application. For example, imagine we're writing a blog reader app.
+
 Here's what your model definition would look like if you're using
-globals (that is, not something like  or ember-cli):
+ES6 modules (via ember-cli):
+
+```js
+// app/models/blog-post.js
+import DS from 'ember-data';
+
+export default DS.Model.extend({
+  title: DS.attr(),
+  createdAt: DS.attr('date'),
+
+  comments: DS.hasMany('comment')
+});
+
+// app/models/comment.js
+import DS from 'ember-data';
+
+export default DS.Model.extend({
+  body: DS.attr(),
+  username: DS.attr(),
+
+  post: DS.belongsTo('blogPost')
+});
+```
+
+If you're using globals (that is, not something like  or ember-cli), your
+models would look like this:
 
 ```js
 var attr = DS.attr;
@@ -75,33 +101,6 @@ App.Comment = DS.Model.extend({
 });
 ```
 
-If you're using ES6 modules (via ember-cli), your
-models would look like this:
-
-```js
-// app/models/blog-post.js
-var attr = DS.attr;
-var hasMany = DS.hasMany;
-
-export default DS.Model.extend({
-  title: attr(),
-  createdAt: attr('date'),
-
-  comments: hasMany('comment')
-});
-
-// app/models/comment.js
-var attr = DS.attr;
-var belongsTo = DS.belongsTo;
-
-export default DS.Model.extend({
-  body: attr(),
-  username: attr(),
-
-  post: belongsTo('blogPost')
-});
-```
-
 ### A Brief Note on Adapters
 
 Without immediately diving in to the depths of the architecture, one
@@ -116,12 +115,6 @@ adapter translates that into an XHR request to (for example)
 
 By default, Ember Data will use the `RESTAdapter`, which adheres to a
 set of RESTful JSON conventions.
-
-Ember Data also ships with the `FixtureAdapter`, useful for testing and
-prototyping before you have a server, and the `ActiveModelAdapter`,
-which is designed to work out-of-the-box with the
-[`ActiveModel::Serializers`](https://github.com/rails-api/active_model_serializers)
-gem for Rails.
 
 To learn more about adapters, including what conventions the
 `RESTAdapter` follows and how to build your own, see the Ember.js

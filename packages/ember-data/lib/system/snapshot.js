@@ -9,23 +9,27 @@ var get = Ember.get;
   @namespace DS
   @private
   @constructor
-  @param {DS.Model} record The record to create a snapshot from
+  @param {DS.Model} internalModel The model to create a snapshot from
 */
-function Snapshot(record) {
+function Snapshot(internalModel) {
   this._attributes = Ember.create(null);
   this._belongsToRelationships = Ember.create(null);
   this._belongsToIds = Ember.create(null);
   this._hasManyRelationships = Ember.create(null);
   this._hasManyIds = Ember.create(null);
 
+  var record = internalModel.getRecord();
+  this.record = record;
   record.eachAttribute(function(keyName) {
     this._attributes[keyName] = get(record, keyName);
   }, this);
 
-  this.id = get(record, 'id');
-  this.record = record;
-  this.type = record.constructor;
-  this.modelName = record.constructor.modelName;
+  this.id = internalModel.id;
+  this._internalModel = internalModel;
+  this.type = internalModel.type;
+  this.modelName = internalModel.type.modelName;
+
+  this._changedAttributes = record.changedAttributes();
 
   // The following code is here to keep backwards compatibility when accessing
   // `constructor` directly.
@@ -90,10 +94,10 @@ Snapshot.prototype = {
   record: null,
 
   /**
-    The type of the underlying record for this snapshot, as a subclass of DS.Model.
+    The type of the underlying record for this snapshot, as a DS.Model.
 
     @property type
-    @type {subclass of DS.Model}
+    @type {DS.Model}
   */
   type: null,
 
@@ -135,7 +139,7 @@ Snapshot.prototype = {
     Example
 
     ```javascript
-    // store.push('post', { id: 1, author: 'Tomster', title: 'Hello World' });
+    // store.push('post', { id: 1, author: 'Tomster', title: 'Ember.js rocks' });
     postSnapshot.attributes(); // => { author: 'Tomster', title: 'Ember.js rocks' }
     ```
 
@@ -144,6 +148,31 @@ Snapshot.prototype = {
   */
   attributes: function() {
     return Ember.copy(this._attributes);
+  },
+
+  /**
+    Returns all changed attributes and their old and new values.
+
+    Example
+
+    ```javascript
+    // store.push('post', { id: 1, author: 'Tomster', title: 'Ember.js rocks' });
+    postModel.set('title', 'Ember.js rocks!');
+    postSnapshot.changedAttributes(); // => { title: ['Ember.js rocks', 'Ember.js rocks!'] }
+    ```
+
+    @method changedAttributes
+    @return {Object} All changed attributes of the current snapshot
+  */
+  changedAttributes: function() {
+    var prop;
+    var changedAttributes = Ember.create(null);
+
+    for (prop in this._changedAttributes) {
+      changedAttributes[prop] = Ember.copy(this._changedAttributes[prop]);
+    }
+
+    return changedAttributes;
   },
 
   /**
@@ -177,7 +206,7 @@ Snapshot.prototype = {
     @method belongsTo
     @param {String} keyName
     @param {Object} [options]
-    @return {DS.Snapshot|String|null|undefined} A snapshot or ID of a known
+    @return {(DS.Snapshot|String|null|undefined)} A snapshot or ID of a known
       relationship or null if the relationship is known but unset. undefined
       will be returned if the contents of the relationship is unknown.
   */
@@ -194,7 +223,7 @@ Snapshot.prototype = {
       return this._belongsToRelationships[keyName];
     }
 
-    relationship = this.record._relationships[keyName];
+    relationship = this._internalModel._relationships.get(keyName);
     if (!(relationship && relationship.relationshipMeta.kind === 'belongsTo')) {
       throw new Ember.Error("Model '" + Ember.inspect(this.record) + "' has no belongsTo relationship named '" + keyName + "' defined.");
     }
@@ -203,11 +232,11 @@ Snapshot.prototype = {
     inverseRecord = get(relationship, 'inverseRecord');
 
     if (hasData) {
-      if (inverseRecord) {
+      if (inverseRecord && !inverseRecord.isDeleted()) {
         if (id) {
           result = get(inverseRecord, 'id');
         } else {
-          result = inverseRecord._createSnapshot();
+          result = inverseRecord.createSnapshot();
         }
       } else {
         result = null;
@@ -248,7 +277,7 @@ Snapshot.prototype = {
     @method hasMany
     @param {String} keyName
     @param {Object} [options]
-    @return {Array|undefined} An array of snapshots or IDs of a known
+    @return {(Array|undefined)} An array of snapshots or IDs of a known
       relationship or an empty array if the relationship is known but unset.
       undefined will be returned if the contents of the relationship is unknown.
   */
@@ -265,7 +294,7 @@ Snapshot.prototype = {
       return this._hasManyRelationships[keyName];
     }
 
-    relationship = this.record._relationships[keyName];
+    relationship = this._internalModel._relationships.get(keyName);
     if (!(relationship && relationship.relationshipMeta.kind === 'hasMany')) {
       throw new Ember.Error("Model '" + Ember.inspect(this.record) + "' has no hasMany relationship named '" + keyName + "' defined.");
     }
@@ -276,10 +305,12 @@ Snapshot.prototype = {
     if (hasData) {
       results = [];
       members.forEach(function(member) {
-        if (ids) {
-          results.push(get(member, 'id'));
-        } else {
-          results.push(member._createSnapshot());
+        if (!member.isDeleted()) {
+          if (ids) {
+            results.push(member.id);
+          } else {
+            results.push(member.createSnapshot());
+          }
         }
       });
     }
@@ -350,7 +381,7 @@ Snapshot.prototype = {
       return this.attr(keyName);
     }
 
-    var relationship = this.record._relationships[keyName];
+    var relationship = this._internalModel._relationships.get(keyName);
 
     if (relationship && relationship.relationshipMeta.kind === 'belongsTo') {
       return this.belongsTo(keyName);
@@ -360,6 +391,15 @@ Snapshot.prototype = {
     }
 
     return get(this.record, keyName);
+  },
+
+  /**
+    @method serialize
+    @param {Object} options
+    @return {Object} an object whose values are primitive JSON values only
+   */
+  serialize: function(options) {
+    return this.record.store.serializerFor(this.modelName).serialize(this, options);
   },
 
   /**

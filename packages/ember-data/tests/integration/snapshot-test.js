@@ -99,6 +99,19 @@ test("snapshot.attr() does not change when record changes", function() {
   });
 });
 
+test("snapshot.attr() throws an error attribute not found", function() {
+  expect(1);
+
+  run(function() {
+    var post = env.store.push('post', { id: 1, title: 'Hello World' });
+    var snapshot = post._createSnapshot();
+
+    throws(function() {
+      snapshot.attr('unknown');
+    }, /has no attribute named 'unknown' defined/, 'attr throws error');
+  });
+});
+
 test("snapshot.attributes() returns a copy of all attributes for the current snapshot", function() {
   expect(1);
 
@@ -109,6 +122,20 @@ test("snapshot.attributes() returns a copy of all attributes for the current sna
     var attributes = snapshot.attributes();
 
     deepEqual(attributes, { author: undefined, title: 'Hello World' }, 'attributes are returned correctly');
+  });
+});
+
+test("snapshot.changedAttributes() returns a copy of all changed attributes for the current snapshot", function() {
+  expect(1);
+
+  run(function() {
+    var post = env.store.push('post', { id: 1, title: 'Hello World' });
+    post.set('title', 'Hello World!');
+    var snapshot = post._createSnapshot();
+
+    var changes = snapshot.changedAttributes();
+
+    deepEqual(changes, { title: ['Hello World', 'Hello World!'] }, 'changed attributes are returned correctly');
   });
 });
 
@@ -152,6 +179,22 @@ test("snapshot.belongsTo() returns a snapshot if relationship is set", function(
   });
 });
 
+test("snapshot.belongsTo() returns null if relationship is deleted", function() {
+  expect(1);
+
+  run(function() {
+    var post = env.store.push('post', { id: 1, title: 'Hello World' });
+    var comment = env.store.push('comment', { id: 2, body: 'This is comment', post: 1 });
+
+    post.deleteRecord();
+
+    var snapshot = comment._createSnapshot();
+    var relationship = snapshot.belongsTo('post');
+
+    equal(relationship, null, 'relationship unset after deleted');
+  });
+});
+
 test("snapshot.belongsTo() returns undefined if relationship is a link", function() {
   expect(1);
 
@@ -161,6 +204,19 @@ test("snapshot.belongsTo() returns undefined if relationship is a link", functio
     var relationship = snapshot.belongsTo('post');
 
     equal(relationship, undefined, 'relationship is undefined');
+  });
+});
+
+test("snapshot.belongsTo() throws error if relation doesn't exist", function() {
+  expect(1);
+
+  run(function() {
+    var post = env.store.push('post', { id: 1, title: 'Hello World' });
+    var snapshot = post._createSnapshot();
+
+    throws(function() {
+      snapshot.belongsTo('unknown');
+    }, /has no belongsTo relationship named 'unknown'/, 'throws error');
   });
 });
 
@@ -232,7 +288,7 @@ test("snapshot.belongsTo() and snapshot.hasMany() returns correctly when setting
   });
 });
 
-test("snapshot.hasMany() returns ID if option.id is set", function() {
+test("snapshot.belongsTo() returns ID if option.id is set", function() {
   expect(1);
 
   run(function() {
@@ -242,6 +298,22 @@ test("snapshot.hasMany() returns ID if option.id is set", function() {
     var relationship = snapshot.belongsTo('post', { id: true });
 
     equal(relationship, '1', 'relationship ID correctly returned');
+  });
+});
+
+test("snapshot.belongsTo() returns null if option.id is set but relationship was deleted", function() {
+  expect(1);
+
+  run(function() {
+    var post = env.store.push('post', { id: 1, title: 'Hello World' });
+    var comment = env.store.push('comment', { id: 2, body: 'This is comment', post: 1 });
+
+    post.deleteRecord();
+
+    var snapshot = comment._createSnapshot();
+    var relationship = snapshot.belongsTo('post', { id: true });
+
+    equal(relationship, null, 'relationship unset after deleted');
   });
 });
 
@@ -292,6 +364,25 @@ test("snapshot.hasMany() returns array of snapshots if relationship is set", fun
   });
 });
 
+test("snapshot.hasMany() returns empty array if relationship records are deleted", function() {
+  expect(2);
+
+  run(function() {
+    var comment1 = env.store.push('comment', { id: 1, body: 'This is the first comment' });
+    var comment2 = env.store.push('comment', { id: 2, body: 'This is the second comment' });
+    var post = env.store.push('post', { id: 3, title: 'Hello World', comments: [1, 2] });
+
+    comment1.deleteRecord();
+    comment2.deleteRecord();
+
+    var snapshot = post._createSnapshot();
+    var relationship = snapshot.hasMany('comments');
+
+    ok(relationship instanceof Array, 'relationship is an instance of Array');
+    equal(relationship.length, 0, 'relationship is empty');
+  });
+});
+
 test("snapshot.hasMany() returns array of IDs if option.ids is set", function() {
   expect(1);
 
@@ -301,6 +392,25 @@ test("snapshot.hasMany() returns array of IDs if option.ids is set", function() 
     var relationship = snapshot.hasMany('comments', { ids: true });
 
     deepEqual(relationship, ['2', '3'], 'relationship IDs correctly returned');
+  });
+});
+
+test("snapshot.hasMany() returns empty array of IDs if option.ids is set but relationship records were deleted", function() {
+  expect(2);
+
+  run(function() {
+    var comment1 = env.store.push('comment', { id: 1, body: 'This is the first comment' });
+    var comment2 = env.store.push('comment', { id: 2, body: 'This is the second comment' });
+    var post = env.store.push('post', { id: 3, title: 'Hello World', comments: [1, 1] });
+
+    comment1.deleteRecord();
+    comment2.deleteRecord();
+
+    var snapshot = post._createSnapshot();
+    var relationship = snapshot.hasMany('comments', { ids: true });
+
+    ok(relationship instanceof Array, 'relationship is an instance of Array');
+    equal(relationship.length, 0, 'relationship is empty');
   });
 });
 
@@ -333,6 +443,19 @@ test("snapshot.hasMany() returns array of snapshots if relationship link has bee
       ok(relationship instanceof Array, 'relationship is an instance of Array');
       equal(relationship.length, 1, 'relationship has one item');
     });
+  });
+});
+
+test("snapshot.hasMany() throws error if relation doesn't exist", function() {
+  expect(1);
+
+  run(function() {
+    var post = env.store.push('post', { id: 1, title: 'Hello World' });
+    var snapshot = post._createSnapshot();
+
+    throws(function() {
+      snapshot.hasMany('unknown');
+    }, /has no hasMany relationship named 'unknown'/, 'throws error');
   });
 });
 
@@ -511,6 +634,20 @@ test("snapshot.get() proxies property to record unless identified as id, attribu
     expectDeprecation(function() {
       equal(snapshot.get('category'), 'Ember.js', 'snapshot proxies unknown property correctly');
     });
+  });
+});
+
+test("snapshot.serialize() serializes itself", function() {
+  expect(2);
+
+  run(function() {
+    var post = env.store.push('post', { id: 1, title: 'Hello World' });
+    var snapshot = post._createSnapshot();
+
+    post.set('title', 'New Title');
+
+    deepEqual(snapshot.serialize(), { author: undefined, title: 'Hello World' }, 'shapshot serializes correctly');
+    deepEqual(snapshot.serialize({ includeId: true }), { id: "1", author: undefined, title: 'Hello World' }, 'serialize takes options');
   });
 });
 

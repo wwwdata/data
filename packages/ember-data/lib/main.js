@@ -4,21 +4,22 @@
   @main ember-data
 */
 
+if (Ember.VERSION.match(/^1\.[0-7]\./)) {
+  throw new Ember.Error("Ember Data requires at least Ember 1.8.0, but you have " +
+                        Ember.VERSION +
+                        ". Please upgrade your version of Ember, then upgrade Ember Data");
+}
+
 // support RSVP 2.x via resolve,  but prefer RSVP 3.x's Promise.cast
 Ember.RSVP.Promise.cast = Ember.RSVP.Promise.cast || Ember.RSVP.resolve;
 
-Ember.runInDebug(function() {
-  if (Ember.VERSION.match(/^1\.[0-7]\./)) {
-    throw new Ember.Error("Ember Data requires at least Ember 1.8.0, but you have " +
-                          Ember.VERSION +
-                          ". Please upgrade your version of Ember, then upgrade Ember Data");
-  }
-});
 
 import DS from "ember-data/core";
 import "ember-data/ext/date";
 
 import normalizeModelName from "ember-data/system/normalize-model-name";
+
+import InternalModel from "ember-data/system/model/internal-model";
 
 import {
   PromiseArray,
@@ -86,6 +87,7 @@ DS.RootState = RootState;
 DS.attr      = attr;
 DS.Errors    = Errors;
 
+DS.InternalModel = InternalModel;
 DS.Snapshot = Snapshot;
 
 DS.Adapter      = Adapter;
@@ -104,7 +106,6 @@ DS.RecordArrayManager = RecordArrayManager;
 
 DS.RESTAdapter    = RESTAdapter;
 DS.BuildURLMixin  = BuildURLMixin;
-DS.FixtureAdapter = FixtureAdapter;
 
 DS.RESTSerializer = RESTSerializer;
 DS.JSONSerializer = JSONSerializer;
@@ -134,6 +135,22 @@ Ember.defineProperty(DS, 'normalizeModelName', {
   configurable: false,
   value: normalizeModelName
 });
+
+var fixtureAdapterWasDeprecated = false;
+
+if (Ember.platform.hasPropertyAccessors) {
+  Ember.defineProperty(DS, 'FixtureAdapter', {
+    get: function() {
+      if (!fixtureAdapterWasDeprecated) {
+        Ember.deprecate('DS.FixtureAdapter has been deprecated and moved into an unsupported addon: https://github.com/emberjs/ember-data-fixture-adapter/tree/master');
+        fixtureAdapterWasDeprecated = true;
+      }
+      return FixtureAdapter;
+    }
+  });
+} else {
+  DS.FixtureAdapter = FixtureAdapter;
+}
 
 Ember.lookup.DS = DS;
 
