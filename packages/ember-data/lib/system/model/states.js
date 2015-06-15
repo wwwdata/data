@@ -246,7 +246,7 @@ var DirtyState = {
     loadingData: Ember.K,
 
     propertyWasReset: function(internalModel, name) {
-      var length = Ember.keys(internalModel._attributes).length;
+      var length = Object.keys(internalModel._attributes).length;
       var stillDirty = length > 0;
 
       if (!stillDirty) { internalModel.send('rolledBack'); }

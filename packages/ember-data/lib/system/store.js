@@ -107,9 +107,6 @@ var get = Ember.get;
 var set = Ember.set;
 var once = Ember.run.once;
 var isNone = Ember.isNone;
-var forEach = Ember.ArrayPolyfills.forEach;
-var indexOf = Ember.ArrayPolyfills.indexOf;
-var map = Ember.ArrayPolyfills.map;
 var Promise = Ember.RSVP.Promise;
 var copy = Ember.copy;
 var Store;
@@ -312,7 +309,7 @@ Store = Service.extend({
   createRecord: function(modelName, inputProperties) {
     Ember.assert('Passing classes to store methods has been removed. Please pass a dasherized string instead of '+ Ember.inspect(modelName), typeof modelName === 'string');
     var typeClass = this.modelFor(modelName);
-    var properties = copy(inputProperties) || Ember.create(null);
+    var properties = copy(inputProperties) || Object.create(null);
 
     // If the passed properties do not include a primary key,
     // give the adapter an opportunity to generate one. Typically,
@@ -336,7 +333,7 @@ Store = Service.extend({
     // Set the properties specified on the record.
     record.setProperties(properties);
 
-    internalModel.eachRelationship(function(key, descriptor) {
+    internalModel.eachRelationship((key, descriptor) => {
       internalModel._relationships.get(key).setHasData(true);
     });
 
@@ -668,7 +665,7 @@ Store = Service.extend({
     Ember.assert('Passing classes to store methods has been removed. Please pass a dasherized string instead of '+ Ember.inspect(modelName), typeof modelName === 'string');
     var store = this;
 
-    return promiseArray(Ember.RSVP.all(map.call(ids, function(id) {
+    return promiseArray(Ember.RSVP.all(ids.map((id) => {
       return store.findRecord(modelName, id);
     })).then(Ember.A, null, "DS: Store#findByIds of " + modelName + " complete"));
   },
@@ -697,8 +694,8 @@ Store = Service.extend({
   },
 
   scheduleFetchMany: function(records) {
-    var internalModels = map.call(records, function(record) { return record._internalModel; });
-    return Promise.all(map.call(internalModels, this.scheduleFetch, this));
+    var internalModels = records.map((record) => record._internalModel);
+    return Promise.all(internalModels.map(this.scheduleFetch, this));
   },
 
   scheduleFetch: function(internalModel, options) {
@@ -746,7 +743,7 @@ Store = Service.extend({
     }
 
     function resolveFoundRecords(records) {
-      forEach.call(records, function(record) {
+      records.forEach(function(record) {
         var pair = Ember.A(pendingFetchItems).findBy('record', record);
         if (pair) {
           var resolver = pair.resolver;
@@ -776,7 +773,7 @@ Store = Service.extend({
     }
 
     function rejectRecords(records, error) {
-      forEach.call(records, function(record) {
+      records.forEach(function(record) {
         var pair = Ember.A(pendingFetchItems).findBy('record', record);
         if (pair) {
           var resolver = pair.resolver;
@@ -802,7 +799,7 @@ Store = Service.extend({
 
       var snapshots = Ember.A(records).invoke('createSnapshot');
       var groups = adapter.groupRecordsForFindMany(this, snapshots);
-      forEach.call(groups, function (groupOfSnapshots) {
+      groups.forEach((groupOfSnapshots) => {
         var groupOfRecords = Ember.A(groupOfSnapshots).mapBy('_internalModel');
         var requestedRecords = Ember.A(groupOfRecords);
         var ids = requestedRecords.mapBy('id');
@@ -819,7 +816,7 @@ Store = Service.extend({
         }
       });
     } else {
-      forEach.call(pendingFetchItems, _fetchRecord);
+      pendingFetchItems.forEach(_fetchRecord);
     }
   },
 
@@ -954,11 +951,8 @@ Store = Service.extend({
     @return {Promise} promise
   */
   findMany: function(internalModels) {
-    var store = this;
-    return Promise.all(map.call(internalModels, function(internalModel) {
-      return store._findByInternalModel(internalModel);
-    }));
-  },
+    return Promise.all(internalModels.map((internalModel) => this._findByInternalModel(internalModel)));
+  }h,
 
 
   /**
@@ -1260,11 +1254,11 @@ Store = Service.extend({
     Ember.assert('Passing classes to store methods has been removed. Please pass a dasherized string instead of '+ Ember.inspect(modelName), !modelName || typeof modelName === 'string');
     if (arguments.length === 0) {
       var typeMaps = this.typeMaps;
-      var keys = Ember.keys(typeMaps);
+      var keys = Object.keys(typeMaps);
 
-      var types = map.call(keys, byType);
+      var types = keys.map(byType);
 
-      forEach.call(types, this.unloadAll, this);
+      types.forEach(this.unloadAll, this);
     } else {
       var typeClass = this.modelFor(modelName);
       var typeMap = this.typeMapFor(typeClass);
@@ -1277,7 +1271,7 @@ Store = Service.extend({
         record.destroy(); // maybe within unloadRecord
       }
 
-      typeMap.metadata = Ember.create(null);
+      typeMap.metadata = Object.create(null);
     }
 
     function byType(entry) {
@@ -1359,11 +1353,9 @@ Store = Service.extend({
       array = this.recordArrayManager.createFilteredRecordArray(modelName, filter);
     }
 
-    promise = promise || Promise.cast(array);
+    promise = promise || Promise.resolve(array);
 
-    return promiseArray(promise.then(function() {
-      return array;
-    }, null, "DS: Store#filter of " + modelName));
+    return promiseArray(promise.then(() => array, null, 'DS: Store#filter of ' + modelName));
   },
 
   /**
@@ -1474,7 +1466,7 @@ Store = Service.extend({
     var pending = this._pendingSave.slice();
     this._pendingSave = [];
 
-    forEach.call(pending, function(pendingItem) {
+    pending.forEach((pendingItem) => {
       var snapshot = pendingItem.snapshot;
       var resolver = pendingItem.resolver;
       var record = snapshot._internalModel;
@@ -1492,7 +1484,7 @@ Store = Service.extend({
       }
 
       resolver.resolve(_commit(adapter, this, operation, snapshot));
-    }, this);
+    });
   },
 
   /**
@@ -1584,9 +1576,9 @@ Store = Service.extend({
     if (typeMap) { return typeMap; }
 
     typeMap = {
-      idToRecord: Ember.create(null),
+      idToRecord: Object.create(null),
       records: [],
-      metadata: Ember.create(null),
+      metadata: Object.create(null),
       type: typeClass
     };
 
@@ -1675,7 +1667,7 @@ Store = Service.extend({
 
     // deprecate typeKey
     if (!('typeKey' in factory)) {
-      Ember.defineProperty(factory, 'typeKey', {
+      Object.defineProperty(factory, 'typeKey', {
         enumerable: true,
         configurable: false,
         get: function() {
@@ -1773,10 +1765,8 @@ Store = Service.extend({
   push: function(modelName, data) {
     Ember.assert('Passing classes to store methods has been removed. Please pass a dasherized string instead of '+ Ember.inspect(modelName), typeof modelName === 'string' || typeof data === 'undefined');
     var internalModel = this._pushInternalModel(modelName, data);
-    if (Ember.isArray(internalModel)) {
-      return map.call(internalModel, (item) => {
-        return item.getRecord();
-      });
+    if (Array.isArray(internalModel)) {
+      return internalModel.map((item) => item.getRecord());
     }
     return internalModel.getRecord();
   },
@@ -1785,10 +1775,8 @@ Store = Service.extend({
     if (Ember.typeOf(modelName) === 'object' && Ember.typeOf(data) === 'undefined') {
       //TODO Remove once the transition is complete
       var result = pushPayload(this, modelName);
-      if (Ember.isArray(result)) {
-        return map.call(result, (item) => {
-          return item._internalModel;
-        });
+      if (Array.isArray(result)) {
+        return result.map((item) => item._internalModel);
       }
       return result._internalModel;
     }
@@ -1797,16 +1785,15 @@ Store = Service.extend({
     Ember.deprecate('store.push(type, data) has been deprecated. Please provide a JSON-API document object as the first and only argument to store.push.');
 
     var type = this.modelFor(modelName);
-    var filter = Ember.ArrayPolyfills.filter;
 
     // If Ember.ENV.DS_WARN_ON_UNKNOWN_KEYS is set to true and the payload
     // contains unknown keys, log a warning.
     if (Ember.ENV.DS_WARN_ON_UNKNOWN_KEYS) {
       Ember.warn("The payload for '" + type.modelName + "' contains these unknown keys: " +
-        Ember.inspect(filter.call(Ember.keys(data), function(key) {
+        Ember.inspect(Object.keys(data).forEach((key) => {
           return !(key === 'id' || key === 'links' || get(type, 'fields').has(key) || key.match(/Type$/));
         })) + ". Make sure they've been defined in your model.",
-        filter.call(Ember.keys(data), function(key) {
+        Object.keys(data).filter((key) => {
           return !(key === 'id' || key === 'links' || get(type, 'fields').has(key) || key.match(/Type$/));
         }).length === 0
       );
@@ -1815,10 +1802,8 @@ Store = Service.extend({
     // Actually load the record into the store.
     var internalModel = this._load(modelName, data);
 
-    var store = this;
-
-    this._backburner.join(function() {
-      store._backburner.schedule('normalizeRelationships', store, '_setupRelationships', internalModel, type, data);
+    this._backburner.join(() => {
+      this._backburner.schedule('normalizeRelationships', this, '_setupRelationships', internalModel, type, data);
     });
 
     return internalModel;
@@ -1909,10 +1894,7 @@ Store = Service.extend({
       Ember.assert('Passing classes to store methods has been removed. Please pass a dasherized string instead of '+ Ember.inspect(modelName), typeof modelName === 'string');
       serializer = this.serializerFor(modelName);
     }
-    var store = this;
-    this._adapterRun(function() {
-      serializer.pushPayload(store, payload);
-    });
+    this._adapterRun(() => serializer.pushPayload(this, payload));
   },
 
   /**
@@ -2061,7 +2043,7 @@ Store = Service.extend({
       delete typeMap.idToRecord[id];
     }
 
-    var loc = indexOf.call(typeMap.records, internalModel);
+    var loc = typeMap.records.indexOf(internalModel);
     typeMap.records.splice(loc, 1);
   },
 
@@ -2279,12 +2261,12 @@ function _commit(adapter, store, operation, snapshot) {
 
   Ember.assert("Your adapter's '" + operation + "' method must return a value, but it returned `undefined", promise !==undefined);
 
-  promise = Promise.cast(promise, label);
+  promise = Promise.resikve(promise, label);
   promise = _guard(promise, _bind(_objectIsAlive, store));
   promise = _guard(promise, _bind(_objectIsAlive, record));
 
-  return promise.then(function(adapterPayload) {
-    store._adapterRun(function() {
+  return promise.then((adapterPayload) => {
+    store._adapterRun(() => {
       var payload, data;
       if (adapterPayload) {
         payload = normalizeResponseHelper(serializer, store, type, adapterPayload, snapshot.id, operation);
@@ -2294,7 +2276,7 @@ function _commit(adapter, store, operation, snapshot) {
     });
 
     return record;
-  }, function(reason) {
+  }, (reason) => {
     if (reason instanceof InvalidError) {
       var errors = serializer.extractErrors(store, type, reason.errors, snapshot.id);
       store.recordWasInvalid(record, errors);
@@ -2310,7 +2292,7 @@ function _commit(adapter, store, operation, snapshot) {
 function setupRelationships(store, record, data) {
   var typeClass = record.type;
 
-  typeClass.eachRelationship(function(key, descriptor) {
+  typeClass.eachRelationship((key, descriptor) => {
     var kind = descriptor.kind;
     var value = data[key];
     var relationship;
@@ -2341,12 +2323,11 @@ function deprecatePreload(preloadOrOptions, type, methodName) {
   if (preloadOrOptions) {
     var modelProperties = [];
     var fields = Ember.get(type, 'fields');
-    fields.forEach(function(fieldType, key) {
-      modelProperties.push(key);
-    });
-    var preloadDetected = modelProperties.reduce(function(memo, key) {
+    fields.forEach((fieldType, key) =>  modelProperties.push(key));
+    var preloadDetected = modelProperties.reduce((memo, key) => {
       return typeof preloadOrOptions[key] !== 'undefined' || memo;
     }, false);
+
     if (preloadDetected) {
       Ember.deprecate(`Passing a preload argument to \`store.${methodName}\` is deprecated. Please move it to the preload key on the ${methodName} \`options\` argument.`);
       var preload = preloadOrOptions;

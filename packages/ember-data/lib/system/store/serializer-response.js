@@ -1,6 +1,3 @@
-var forEach = Ember.ArrayPolyfills.forEach;
-var map = Ember.ArrayPolyfills.map;
-
 /**
   This is a helper method that always returns a JSON-API Document.
 
@@ -42,10 +39,8 @@ export function _normalizeSerializerPayload(modelClass, payload) {
   let data = null;
 
   if (payload) {
-    if (Ember.isArray(payload)) {
-      data = map.call(payload, (payload) => {
-        return _normalizeSerializerPayloadItem(modelClass, payload);
-      });
+    if (Array.isArray(payload)) {
+      data = payload.map((payload) => _normalizeSerializerPayloadItem(modelClass, payload));
     } else {
       data = _normalizeSerializerPayloadItem(modelClass, payload);
     }
@@ -72,13 +67,13 @@ export function _normalizeSerializerPayloadItem(modelClass, itemPayload) {
   item.attributes = {};
   item.relationships = {};
 
-  modelClass.eachAttribute(function(name) {
+  modelClass.eachAttribute((name) => {
     if (itemPayload.hasOwnProperty(name)) {
       item.attributes[name] = itemPayload[name];
     }
   });
 
-  modelClass.eachRelationship(function(key, relationshipMeta) {
+  modelClass.eachRelationship((key, relationshipMeta) => {
     var relationship, value;
 
     if (itemPayload.hasOwnProperty(key)) {
@@ -101,9 +96,7 @@ export function _normalizeSerializerPayloadItem(modelClass, itemPayload) {
       if (relationshipMeta.kind === 'belongsTo') {
         relationship.data = normalizeRelationshipData(value, relationshipMeta);
       } else if (relationshipMeta.kind === 'hasMany') {
-        relationship.data = map.call(Ember.A(value), function(item) {
-          return normalizeRelationshipData(item, relationshipMeta);
-        });
+        relationship.data = value.map((item) => normalizeRelationshipData(item, relationshipMeta));
       }
     }
 
@@ -155,9 +148,7 @@ export function pushPayloadData(store, payload) {
   var result;
   if (payload && payload.data) {
     if (Ember.isArray(payload.data)) {
-      result = map.call(payload.data, (item) => {
-        return _pushResourceObject(store, item);
-      });
+      result = payload.data.map((item) => _pushResourceObject(store, item));
     } else {
       result = _pushResourceObject(store, payload.data);
     }
@@ -177,10 +168,8 @@ export function pushPayloadData(store, payload) {
 */
 export function pushPayloadIncluded(store, payload) {
   var result;
-  if (payload && payload.included && Ember.isArray(payload.included)) {
-    result = map.call(payload.included, (item) => {
-      return _pushResourceObject(store, item);
-    });
+  if (payload && payload.included && Array.isArray(payload.included)) {
+    result = payload.included.map((item) => _pushResourceObject(store, item));
   }
   return result;
 }
@@ -219,15 +208,15 @@ export function convertResourceObject(payload) {
   };
 
   if (payload.attributes) {
-    var attributeKeys = Ember.keys(payload.attributes);
-    forEach.call(attributeKeys, function(key) {
+    var attributeKeys = Object.keys(payload.attributes);
+    attributeKeys.forEach((key) => {
       var attribute = payload.attributes[key];
       data[key] = attribute;
     });
   }
   if (payload.relationships) {
-    var relationshipKeys = Ember.keys(payload.relationships);
-    forEach.call(relationshipKeys, function(key) {
+    var relationshipKeys = Object.keys(payload.relationships);
+    relationshipKeys.forEach((key) => {
       var relationship = payload.relationships[key];
       if (relationship.hasOwnProperty('data')) {
         data[key] = relationship.data;

@@ -11,7 +11,6 @@ import {
 } from "ember-data/system/map";
 var get = Ember.get;
 var set = Ember.set;
-var forEach = Ember.ArrayPolyfills.forEach;
 
 import BuildURLMixin from "ember-data/adapters/build-url-mixin";
 
@@ -702,7 +701,7 @@ var RestAdapter = Adapter.extend(BuildURLMixin, {
     var adapter = this;
     var maxURLLength = this.maxURLLength;
 
-    forEach.call(snapshots, function(snapshot) {
+    snapshots.forEach(function(snapshot) {
       var baseUrl = adapter._stripIDFromURL(store, snapshot);
       groups.get(baseUrl).push(snapshot);
     });
@@ -712,7 +711,7 @@ var RestAdapter = Adapter.extend(BuildURLMixin, {
       var idsSize = 0;
       var splitGroups = [[]];
 
-      forEach.call(group, function(snapshot) {
+      group.forEach(function(snapshot) {
         var additionalLength = encodeURIComponent(snapshot.id).length + paramNameLength;
         if (baseUrl.length + idsSize + additionalLength >= maxURLLength) {
           idsSize = 0;
@@ -733,7 +732,7 @@ var RestAdapter = Adapter.extend(BuildURLMixin, {
       var paramNameLength = '&ids%5B%5D='.length;
       var splitGroups = splitGroupToFitInUrl(group, maxURLLength, paramNameLength);
 
-      forEach.call(splitGroups, function(splitGroup) {
+      splitGroups.forEach(function(splitGroup) {
         groupsArray.push(splitGroup);
       });
     });

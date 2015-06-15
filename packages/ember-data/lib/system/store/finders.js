@@ -29,7 +29,7 @@ export function _find(adapter, store, typeClass, id, internalModel, options) {
   var serializer = serializerForAdapter(store, adapter, internalModel.type.modelName);
   var label = "DS: Handle Adapter#find of " + typeClass + " with id: " + id;
 
-  promise = Promise.cast(promise, label);
+  promise = Promise.resolve(promise, label);
   promise = _guard(promise, _bind(_objectIsAlive, store));
 
   return promise.then(function(adapterPayload) {

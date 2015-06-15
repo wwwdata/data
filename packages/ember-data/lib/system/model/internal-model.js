@@ -7,8 +7,6 @@ import Errors from "ember-data/system/model/errors";
 var Promise = Ember.RSVP.Promise;
 var get = Ember.get;
 var set = Ember.set;
-var forEach = Ember.ArrayPolyfills.forEach;
-var map = Ember.ArrayPolyfills.map;
 
 var _extractPivotNameCache = Ember.create(null);
 var _splitOnDotCache = Ember.create(null);
@@ -456,7 +454,7 @@ InternalModel.prototype = {
       }
     }, this);
     var model = this;
-    forEach.call(Ember.keys(this._implicitRelationships), function(key) {
+    Object.keys(this._implicitRelationships).forEach(function(key) {
       model._implicitRelationships[key].clear();
       model._implicitRelationships[key].destroy();
     });
@@ -467,7 +465,7 @@ InternalModel.prototype = {
       this._relationships.get(name).disconnect();
     }, this);
     var model = this;
-    forEach.call(Ember.keys(this._implicitRelationships), function(key) {
+    Object.keys(this._implicitRelationships).forEach(function(key) {
       model._implicitRelationships[key].disconnect();
     });
   },
@@ -477,7 +475,7 @@ InternalModel.prototype = {
       this._relationships.get(name).reconnect();
     }, this);
     var model = this;
-    forEach.call(Ember.keys(this._implicitRelationships), function(key) {
+    Object.keys(this._implicitRelationships).forEach(function(key){
       model._implicitRelationships[key].reconnect();
     });
   },
@@ -501,7 +499,7 @@ InternalModel.prototype = {
   _preloadData: function(preload) {
     var record = this;
     //TODO(Igor) consider the polymorphic case
-    forEach.call(Ember.keys(preload), function(key) {
+    Object.keys(preload).forEach(function(key) {
       var preloadValue = get(preload, key);
       var relationshipMeta = record.type.metaForProperty(key);
       if (relationshipMeta.isRelationship) {
@@ -526,7 +524,7 @@ InternalModel.prototype = {
     Ember.assert("You need to pass in an array to set a hasMany property on a record", Ember.isArray(preloadValue));
     var internalModel = this;
 
-    var recordsToSet = map.call(preloadValue, function(recordToPush) {
+    var recordsToSet = preloadValue.map(function(recordToPush) {
       return internalModel._convertStringOrNumberIntoInternalModel(recordToPush, type);
     });
     //We use the pathway of setting the hasMany as if it came from the adapter
@@ -597,7 +595,7 @@ InternalModel.prototype = {
       merge(this._data, data);
     }
 
-    this._inFlightAttributes = Ember.create(null);
+    this._inFlightAttributes = Object.create(null);
 
     this.send('didCommit');
     this.updateRecordArraysLater();
@@ -641,7 +639,7 @@ InternalModel.prototype = {
   */
   adapterDidInvalidate: function(errors) {
     var recordErrors = this.getErrors();
-    forEach.call(Ember.keys(errors), (key) => {
+    Object.keys(errors).forEach((key) => {
       recordErrors.add(key, errors[key]);
     });
     this._saveWasRejected();

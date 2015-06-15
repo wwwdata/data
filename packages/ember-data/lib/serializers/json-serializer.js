@@ -3,7 +3,6 @@ import coerceId from "ember-data/system/coerce-id";
 
 var get = Ember.get;
 var isNone = Ember.isNone;
-var map = Ember.ArrayPolyfills.map;
 var merge = Ember.merge;
 
 /*
@@ -1465,7 +1464,7 @@ var JSONSerializer = Serializer.extend({
     var normalizedPayload = this.normalizePayload(arrayPayload);
     var serializer = this;
 
-    return map.call(normalizedPayload, function(singlePayload) {
+    return normalizedPayload.map(function(singlePayload) {
       return serializer.normalize(typeClass, singlePayload);
     });
   },

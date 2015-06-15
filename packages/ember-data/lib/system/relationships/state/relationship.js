@@ -1,8 +1,6 @@
 import OrderedSet from "ember-data/system/ordered-set";
 
-var forEach = Ember.ArrayPolyfills.forEach;
-
-function Relationship(store, record, inverseKey, relationshipMeta) {
+export default function Relationship(store, record, inverseKey, relationshipMeta) {
   this.members = new OrderedSet();
   this.canonicalMembers = new OrderedSet();
   this.store = store;
@@ -51,16 +49,12 @@ Relationship.prototype = {
   },
 
   removeRecords: function(records) {
-    var self = this;
-    forEach.call(records, function(record) {
-      self.removeRecord(record);
-    });
+    records.forEach((record) => this.removeRecord(record));
   },
 
   addRecords: function(records, idx) {
-    var self = this;
-    forEach.call(records, function(record) {
-      self.addRecord(record, idx);
+    records.forEach((record) => {
+      this.addRecord(record, idx);
       if (idx !== undefined) {
         idx++;
       }
@@ -202,10 +196,7 @@ Relationship.prototype = {
       return;
     }
     this.willSync = true;
-    var self = this;
-    this.store._backburner.join(function() {
-      self.store._backburner.schedule('syncRelationships', self, self.flushCanonical);
-    });
+    this.store._backburner.join(() => this.store._backburner.schedule('syncRelationships', this, this.flushCanonical));
   },
 
   updateLink: function(link) {
@@ -224,18 +215,15 @@ Relationship.prototype = {
     } else {
       var promise = this.fetchLink();
       this.linkPromise = promise;
-      return promise.then(function(result) {
-        return result;
-      });
+      return promise.then((result) => result);
     }
   },
 
   updateRecordsFromAdapter: function(records) {
     //TODO(Igor) move this to a proper place
-    var self = this;
     //TODO Once we have adapter support, we need to handle updated and canonical changes
-    self.computeChanges(records);
-    self.setHasData(true);
+    this.computeChanges(records);
+    this.setHasData(true);
   },
 
   notifyRecordRelationshipAdded: Ember.K,
@@ -245,8 +233,3 @@ Relationship.prototype = {
     this.hasData = value;
   }
 };
-
-
-
-
-export default Relationship;

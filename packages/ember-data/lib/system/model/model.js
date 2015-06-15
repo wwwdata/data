@@ -622,9 +622,9 @@ var Model = Ember.Object.extend(Ember.Evented, {
   changedAttributes: function() {
     var oldData = get(this._internalModel, '_data');
     var newData = get(this._internalModel, '_attributes');
-    var diffData = Ember.create(null);
+    var diffData = Object.create(null);
 
-    var newDataKeys = Ember.keys(newData);
+    var newDataKeys = Object.keys(newData);
 
     for (let i = 0, length = newDataKeys.length; i < length; i++) {
       let key = newDataKeys[i];
@@ -726,11 +726,8 @@ var Model = Ember.Object.extend(Ember.Evented, {
     successfully or rejected if the adapter returns with an error.
   */
   save: function(options) {
-    var model = this;
     return PromiseObject.create({
-      promise: this._internalModel.save(options).then(function() {
-        return model;
-      })
+      promise: this._internalModel.save(options).then(() => this)
     });
   },
 
@@ -763,11 +760,8 @@ var Model = Ember.Object.extend(Ember.Evented, {
     with an error.
   */
   reload: function() {
-    var model = this;
     return PromiseObject.create({
-      promise: this._internalModel.reload().then(function() {
-        return model;
-      })
+      promise: this._internalModel.reload().then(() => this);
     });
   },
 
@@ -794,9 +788,9 @@ var Model = Ember.Object.extend(Ember.Evented, {
 
   willDestroy: function() {
     //TODO Move!
+    this._super(...arguments);
     this._internalModel.clearRelationships();
     this._internalModel.recordObjectWillDestroy();
-    this._super.apply(this, arguments);
     //TODO should we set internalModel to null here?
   },
 

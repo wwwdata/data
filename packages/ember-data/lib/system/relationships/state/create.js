@@ -20,7 +20,7 @@ var createRelationshipFor = function(record, relationshipMeta, store) {
 
 var Relationships = function(record) {
   this.record = record;
-  this.initializedRelationships = Ember.create(null);
+  this.initializedRelationships = Object.create(null);
 };
 
 Relationships.prototype.has = function(key) {

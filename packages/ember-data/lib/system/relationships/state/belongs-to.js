@@ -14,7 +14,7 @@ var BelongsToRelationship = function(store, record, inverseKey, relationshipMeta
   this.canonicalState = null;
 };
 
-BelongsToRelationship.prototype = Ember.create(Relationship.prototype);
+BelongsToRelationship.prototype = Object.create(Relationship.prototype);
 BelongsToRelationship.prototype.constructor = BelongsToRelationship;
 BelongsToRelationship.prototype._super$constructor = Relationship;
 

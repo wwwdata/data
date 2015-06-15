@@ -11,13 +11,11 @@ function ContainerProxy(container) {
 }
 
 ContainerProxy.prototype.aliasedFactory = function(path, preLookup) {
-  var _this = this;
-
   return {
-    create: function() {
+    create: () => {
       if (preLookup) { preLookup(); }
 
-      return _this.container.lookup(path);
+      return this.container.lookup(path);
     }
   };
 };
