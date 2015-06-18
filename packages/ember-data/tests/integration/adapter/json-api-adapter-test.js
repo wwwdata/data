@@ -670,6 +670,78 @@ test('find a single record with sideloaded hasMany link as object { data } (poly
   });
 });
 
+test('find a single record with sideloaded hasMany link as object { data } with related url in { links } and takes them from { included } (polymorphic)', function() {
+  expect(8);
+
+  ajaxResponse([{
+    data: {
+      type: 'user',
+      id: '1',
+      attributes: {
+        'first-name': 'Yehuda',
+        'last-name': 'Katz'
+      },
+      relationships: {
+        handles: {
+          data: [
+            { type: 'github-handle', id: '2' },
+            { type: 'twitter-handle', id: '3' }
+          ],
+          links: {
+            related: 'http://example.com/users/1/handles'
+          }
+        }
+      }
+    },
+    included: [{
+      type: 'github-handle',
+      id: '2',
+      attributes: {
+        username: 'wycats'
+      }
+    }, {
+      type: 'twitter-handle',
+      id: '3',
+      attributes: {
+        nickname: '@wycats'
+      }
+    }]
+  }, {
+    data: [{
+      type: 'github-handle',
+      id: '2',
+      attributes: {
+        username: 'wycats'
+      }
+    }, {
+      type: 'twitter-handle',
+      id: '3',
+      attributes: {
+        nickname: '@wycats'
+      }
+    }]
+  }
+  ]);
+
+  run(function() {
+    store.find('user', 1).then(function(user) {
+      equal(passedUrl[0], '/users/1');
+
+      equal(user.get('id'), '1');
+      equal(user.get('firstName'), 'Yehuda');
+      equal(user.get('lastName'), 'Katz');
+
+      user.get('handles').then(function(handles) {
+        equal(passedUrl.length, 1);
+
+        equal(handles.get('length'), 2);
+        equal(handles.get('firstObject.username'), 'wycats');
+        equal(handles.get('lastObject.nickname'), '@wycats');
+      });
+    });
+  });
+});
+
 test('create record', function() {
   expect(3);
 
